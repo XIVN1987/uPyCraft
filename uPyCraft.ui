@@ -1,0 +1,482 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>uPyCraft</class>
+ <widget class="QMainWindow" name="uPyCraft">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>902</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>uPyCraft</string>
+  </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>images/logo.ico</normaloff>images/logo.ico</iconset>
+  </property>
+  <property name="iconSize">
+   <size>
+    <width>32</width>
+    <height>32</height>
+   </size>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QHBoxLayout" name="horizontalLayout">
+    <property name="leftMargin">
+     <number>1</number>
+    </property>
+    <property name="topMargin">
+     <number>1</number>
+    </property>
+    <property name="rightMargin">
+     <number>1</number>
+    </property>
+    <property name="bottomMargin">
+     <number>2</number>
+    </property>
+    <item>
+     <widget class="QSplitter" name="hSplitter">
+      <property name="styleSheet">
+       <string notr="true">background-color: rgb(236, 236, 236);
+QSplitter::handle { 
+	background-color: rgb(236, 236, 236);
+}</string>
+      </property>
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+      <property name="handleWidth">
+       <number>1</number>
+      </property>
+      <widget class="TreeView" name="tree">
+       <property name="acceptDrops">
+        <bool>true</bool>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">QTreeView {
+    background-color: qlineargradient(y1: 0, y2: 1,stop: 0 #0D0B0B, stop: 1 #5D5C5C);
+    border-width: 1px;
+    border-color: #888888;
+    border-style: solid;
+    color: white;
+}
+
+QTreeView::branch:closed:has-children {
+    border-image: none;
+    image: url('images/treeBranchOpen.png');
+}
+
+QTreeView::branch:open:has-children {
+    border-image: none;
+    image: url('images/treeBranchClose.png');
+}</string>
+       </property>
+       <property name="editTriggers">
+        <set>QAbstractItemView::NoEditTriggers</set>
+       </property>
+       <property name="dragDropMode">
+        <enum>QAbstractItemView::DragDrop</enum>
+       </property>
+       <attribute name="headerVisible">
+        <bool>false</bool>
+       </attribute>
+      </widget>
+      <widget class="QSplitter" name="vSplitter">
+       <property name="styleSheet">
+        <string notr="true">QSplitter {
+	background-color: qlineargradient(x1: 0, x2: 1,stop: 0 #646464, stop: 1 #171717);
+}
+QTabBar::tab {
+	border-top-left-radius: 3px; 
+	border-top-right-radius: 5px;
+	min-width: 120px;
+	min-height: 25px; 
+	border: 0px solid rgb(255,0,0); 
+	border-bottom: none;  
+	margin-top: 3; 
+	color: rgb(255,255,255);
+}
+QTabWidget::pane {
+	border-width: 0px;
+	border-color: rgb(161,161,161);    
+	border-style: inset;
+	background-color: rgb(64, 64, 64);
+}
+QTabBar::tab::selected {
+	background-color: rgb(38,45,52);
+	border-bottom: 2px solid rgb(254,152,77);
+}
+QTabBar::tab::!selected {
+	background-color:rgb(64,64,64);
+}
+QTabBar::close-button {
+	subcontrol-position: right;
+	image: url(images/tabClose.png)  
+}
+QTabBar::close-button:hover {
+	subcontrol-position: right;
+	image: url(images/tabCloseHover.png)  
+}
+</string>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Vertical</enum>
+       </property>
+       <property name="opaqueResize">
+        <bool>false</bool>
+       </property>
+       <property name="handleWidth">
+        <number>1</number>
+       </property>
+       <widget class="TabWidget" name="tabWidget">
+        <property name="acceptDrops">
+         <bool>true</bool>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">QWidget {
+    background-color: qlineargradient(x1: 0, x2: 1, stop: 0 #262D34, stop: 1 #222529);
+    border-width: 0px;
+    border-color: #666666;
+    border-style: none;
+    color: white;
+}
+QScrollBar:vertical {
+    background-color: rgb(94,98,102);
+    border: 0px;
+    width:  15px;
+    margin: 0px 0px 0px 0px;
+}
+QScrollBar::add-page:vertical {
+    background-color: rgb(61,62,64);
+    width:  15px;
+    margin: 0px 0px 0px 0px;
+}
+QScrollBar::sub-page:vertical {
+    background-color: rgb(61,62,64);
+    width:  15px;
+    margin: 0px 0px 0px 0px;
+}</string>
+        </property>
+        <property name="tabShape">
+         <enum>QTabWidget::Triangular</enum>
+        </property>
+        <property name="currentIndex">
+         <number>-1</number>
+        </property>
+        <property name="elideMode">
+         <enum>Qt::ElideRight</enum>
+        </property>
+        <property name="tabsClosable">
+         <bool>true</bool>
+        </property>
+        <property name="movable">
+         <bool>true</bool>
+        </property>
+       </widget>
+       <widget class="Terminal" name="terminal">
+        <property name="acceptDrops">
+         <bool>false</bool>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">QTextEdit {
+    background-color: qlineargradient(x1: 0, x2: 1, stop: 0 #262D34, stop: 1 #222529);
+    border-style: none;
+    color: white;
+}
+QScrollBar:vertical {
+    background-color: rgb(94,98,102);
+    border: 0px;
+    width: 15px;
+    margin: 0px 0px 0px 0px;
+}
+QScrollBar::add-page:vertical {
+    background-color: rgb(61,62,64);
+    width: 15px;
+    margin: 0px 0px 0px 0px;
+}
+QScrollBar::sub-page:vertical {
+    background-color: rgb(61,62,64);
+    width: 15px;
+    margin: 0px 0px 0px 0px;
+}</string>
+        </property>
+        <property name="textInteractionFlags">
+         <set>Qt::TextSelectableByMouse</set>
+        </property>
+       </widget>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QToolBar" name="toolBar">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QToolBar {
+	background-color: qlineargradient( y1: 0,  y2: 1,stop: 0 #FF4E50, stop: 1 #FFBE2B);
+	spacing: 8px;
+}</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionNew"/>
+   <addaction name="actionSave"/>
+   <addaction name="actionUndo"/>
+   <addaction name="actionRedo"/>
+   <addaction name="actionConnect"/>
+   <addaction name="actionDisconnect"/>
+   <addaction name="actionRefresh"/>
+   <addaction name="actionDownload"/>
+   <addaction name="actionDownloadAndRun"/>
+   <addaction name="actionStopExcute"/>
+   <addaction name="actionClearTerminal"/>
+  </widget>
+  <action name="actionNew">
+   <property name="icon">
+    <iconset>
+     <normalon>images/newfile.png</normalon>
+    </iconset>
+   </property>
+   <property name="text">
+    <string>New</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+N</string>
+   </property>
+  </action>
+  <action name="actionOpen">
+   <property name="icon">
+    <iconset>
+     <normalon>images/fileopen.png</normalon>
+    </iconset>
+   </property>
+   <property name="text">
+    <string>Open</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
+   </property>
+  </action>
+  <action name="actionSave">
+   <property name="icon">
+    <iconset>
+     <normalon>images/save.png</normalon>
+    </iconset>
+   </property>
+   <property name="text">
+    <string>Save</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+S</string>
+   </property>
+  </action>
+  <action name="actionSaveAs">
+   <property name="icon">
+    <iconset>
+     <normaloff>images/saveas.png</normaloff>images/saveas.png</iconset>
+   </property>
+   <property name="text">
+    <string>SaveAs</string>
+   </property>
+  </action>
+  <action name="actionExit">
+   <property name="icon">
+    <iconset>
+     <normaloff>images/exit.png</normaloff>images/exit.png</iconset>
+   </property>
+   <property name="text">
+    <string>Exit</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Q</string>
+   </property>
+  </action>
+  <action name="actionCut">
+   <property name="icon">
+    <iconset>
+     <normaloff>images/cut.png</normaloff>images/cut.png</iconset>
+   </property>
+   <property name="text">
+    <string>Cut</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+X</string>
+   </property>
+  </action>
+  <action name="actionCopy">
+   <property name="icon">
+    <iconset>
+     <normaloff>images/copy.png</normaloff>images/copy.png</iconset>
+   </property>
+   <property name="text">
+    <string>Copy</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+C</string>
+   </property>
+  </action>
+  <action name="actionPaste">
+   <property name="icon">
+    <iconset>
+     <normaloff>images/paste.png</normaloff>images/paste.png</iconset>
+   </property>
+   <property name="text">
+    <string>Paste</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+P</string>
+   </property>
+  </action>
+  <action name="actionUndo">
+   <property name="icon">
+    <iconset>
+     <normalon>images/undo.png</normalon>
+    </iconset>
+   </property>
+   <property name="text">
+    <string>Undo</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Z</string>
+   </property>
+  </action>
+  <action name="actionRedo">
+   <property name="icon">
+    <iconset>
+     <normalon>images/redo.png</normalon>
+    </iconset>
+   </property>
+   <property name="text">
+    <string>Redo</string>
+   </property>
+   <property name="toolTip">
+    <string>Redo</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Y</string>
+   </property>
+  </action>
+  <action name="actionConnect">
+   <property name="icon">
+    <iconset>
+     <normalon>images/serialConnect.png</normalon>
+    </iconset>
+   </property>
+   <property name="text">
+    <string>Connect</string>
+   </property>
+   <property name="toolTip">
+    <string>Connect</string>
+   </property>
+  </action>
+  <action name="actionDisconnect">
+   <property name="icon">
+    <iconset>
+     <normalon>images/serialClose.png</normalon>
+    </iconset>
+   </property>
+   <property name="text">
+    <string>Disconnect</string>
+   </property>
+   <property name="visible">
+    <bool>false</bool>
+   </property>
+  </action>
+  <action name="actionRefresh">
+   <property name="icon">
+    <iconset>
+     <normaloff>images/refresh.png</normaloff>images/refresh.png</iconset>
+   </property>
+   <property name="text">
+    <string>Refresh Directory</string>
+   </property>
+   <property name="toolTip">
+    <string>Refresh Directory</string>
+   </property>
+  </action>
+  <action name="actionDownload">
+   <property name="icon">
+    <iconset>
+     <normaloff>images/download.png</normaloff>images/download.png</iconset>
+   </property>
+   <property name="text">
+    <string>Download</string>
+   </property>
+  </action>
+  <action name="actionDownloadAndRun">
+   <property name="icon">
+    <iconset>
+     <normalon>images/downloadandrun.png</normalon>
+    </iconset>
+   </property>
+   <property name="text">
+    <string>DownloadAndRun</string>
+   </property>
+   <property name="shortcut">
+    <string>F5</string>
+   </property>
+  </action>
+  <action name="actionStopExcute">
+   <property name="icon">
+    <iconset>
+     <normalon>images/stop.png</normalon>
+    </iconset>
+   </property>
+   <property name="text">
+    <string>StopExcute</string>
+   </property>
+  </action>
+  <action name="actionClearTerminal">
+   <property name="icon">
+    <iconset>
+     <normalon>images/clear.png</normalon>
+    </iconset>
+   </property>
+   <property name="text">
+    <string>ClearTerminal</string>
+   </property>
+  </action>
+  <action name="actionPreference">
+   <property name="text">
+    <string>Preference</string>
+   </property>
+   <property name="toolTip">
+    <string>Preference</string>
+   </property>
+  </action>
+  <action name="actionTutorial">
+   <property name="text">
+    <string>Tutorial</string>
+   </property>
+  </action>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>Terminal</class>
+   <extends>QTextEdit</extends>
+   <header>widgets</header>
+  </customwidget>
+  <customwidget>
+   <class>TreeView</class>
+   <extends>QTreeView</extends>
+   <header>widgets</header>
+  </customwidget>
+  <customwidget>
+   <class>TabWidget</class>
+   <extends>QTabWidget</extends>
+   <header>widgets</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>
