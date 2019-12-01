@@ -3,7 +3,6 @@ import re
 import sys
 
 from PyQt5 import QtCore, QtGui, QtWidgets, Qsci
-from PyQt5.QtCore import Qt, pyqtSlot, pyqtSignal
 
 
 class TreeView(QtWidgets.QTreeView):
@@ -18,7 +17,7 @@ class TreeView(QtWidgets.QTreeView):
         self.pressed.connect(self.on_item_pressed)
 
     def createContextMenu(self):
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
 
         self.popupMenu = QtWidgets.QMenu(self)
         self.popupMenu.setStyleSheet('''QMenu { background-color:rgb(67,67,67); color:white; }
@@ -26,46 +25,27 @@ class TreeView(QtWidgets.QTreeView):
                                         QMenu::item::selected { background-color: rgb(127,127,127); }
                                      ''')
         
-        self.actionRun    = QtWidgets.QAction('Run', self)
-        self.actionDelete = QtWidgets.QAction('Delete', self)
-        self.actionRename = QtWidgets.QAction('Rename', self)
+        self.actionRun    = QtWidgets.QAction('Run',        self)
+        self.actionDelete = QtWidgets.QAction('Delete',     self)
+        self.actionRename = QtWidgets.QAction('Rename',     self)
+        self.actionNewfil = QtWidgets.QAction('New File',   self)
         self.actionNewdir = QtWidgets.QAction('New Folder', self)
-        self.actionClosedir = QtWidgets.QAction('Close Folder', self)
-        self.actionDownload = QtWidgets.QAction('Download', self)
-        self.actionDownloadAndRun = QtWidgets.QAction('DownloadAndRun', self)
-        
-        self.popupMenu.addAction(self.actionRun)
-        self.popupMenu.addAction(self.actionDelete)
-        self.popupMenu.addAction(self.actionRename)
-        self.popupMenu.addAction(self.actionNewdir)
-        self.popupMenu.addAction(self.actionClosedir)
-        self.popupMenu.addAction(self.actionDownload)
-        self.popupMenu.addAction(self.actionDownloadAndRun)
-
+    
     def on_ContextMenuRequested(self, point):
         self.popupMenu.clear()
 
         if self.pressedFile == '/flash':
+            self.popupMenu.addAction(self.actionNewfil)
             self.popupMenu.addAction(self.actionNewdir)
-        elif self.pressedFile.startswith('/flash/'):
-            if self.pressedFile.endswith('.py'):
-                self.popupMenu.addAction(self.actionRun)
-            self.popupMenu.addAction(self.actionDelete)
+        elif self.pressedFile.endswith('.py'):
+            self.popupMenu.addAction(self.actionRun)
             self.popupMenu.addAction(self.actionRename)
-        elif self.pressedFile == 'Workspace':
-            self.popupMenu.addAction(self.actionNewdir)
-        elif self.pressedFile.startswith('Workspace/'):
-            if self.pressedFile.endswith('.py') or self.pressedFile.endswith('.mpy'):
-                self.popupMenu.addAction(self.actionDownload)
-                self.popupMenu.addAction(self.actionDownloadAndRun)
             self.popupMenu.addAction(self.actionDelete)
-            self.popupMenu.addAction(self.actionRename)
-        elif self.pressedFile.count('/') == 0:
-            self.popupMenu.addAction(self.actionNewdir)
-            self.popupMenu.addAction(self.actionClosedir)
         else:
-            self.popupMenu.addAction(self.actionDelete)
+            self.popupMenu.addAction(self.actionNewfil)
+            self.popupMenu.addAction(self.actionNewdir)
             self.popupMenu.addAction(self.actionRename)
+            self.popupMenu.addAction(self.actionDelete)
 
         self.popupMenu.exec_(self.mapToGlobal(point))
 
@@ -86,99 +66,24 @@ class TreeView(QtWidgets.QTreeView):
         else:
             self.pressedFilePath = self.model().itemFromIndex(indexPre).toolTip()
 
-    def dragEnterEvent(self, event):
-        if event.mimeData().hasFormat("text/uri-list"):
-            self.dragFrom = "External"
-            event.acceptProposedAction()
-
-        elif event.mimeData().hasFormat("application/x-qabstractitemmodeldatalist"):
-            self.dragFrom = "Internal"
-
-            index = self.indexAt(self.mapFrom(self, event.pos()))
-            if not index.data():
-                return
-
-            self.on_item_pressed(index)
-
-            if self.pressedFile.startswith('/flash'):
-                self.ui.terminal.append('can only drag PC file to board')
-                return
-
-            if not os.path.isfile(self.pressedFilePath):
-                self.ui.terminal.append('can only drag file, not folder')
-                return
-
-            self.dragedFilePath = self.pressedFilePath
-
-            event.acceptProposedAction()
-
-        else:
-            event.ignore()
-
-    def dragMoveEvent(self, event): # 必须有这个函数拖拽才能工作
-        pass
-
-    def dropEvent(self, event):
-        if event.mimeData().hasUrls:
-            if self.dragFrom == "External":
-                for url in event.mimeData().urls():
-                    filePath = url.toLocalFile().replace('\\', '/')
-
-                    if os.path.isdir(filePath):
-                        self.ui.addTreeRoot(filePath)
-
-                    elif os.path.isfile(filePath):
-                        self.dropFile(event, filePath)
-                
-            elif self.dragFrom=="Internal":
-                self.dropFile(event, self.dragedFilePath)
-
-        else:
-            event.ignore()
-
-    def dropFile(self, event, dragedFilePath):
-        if not self.ui.ser.isOpen():
-            self.ui.terminal.append('serial not opened')
-            return
-
-        index = self.indexAt(self.mapFrom(self, event.pos()))
-        if not index.data():
-            print('not index')
-            return
-
-        self.on_item_pressed(index)
-
-        if not self.pressedFile.startswith('/flash'):
-            self.ui.terminal.append('can only drag PC file to board')
-            return
-
-        dropDir = os.path.split(self.pressedFilePath)[-1]
-        if dropDir.count('.') > 0:
-            self.ui.terminal.append('can only drop to folder, no file')
-            return
-
-        self.ui.cmdQueue.put('downFile:::%s:::%s' %(dragedFilePath, self.pressedFilePath + '/' + os.path.split(dragedFilePath)[-1]))
-
-
 class TabWidget(QtWidgets.QTabWidget):
     def __init__(self, parent=None):
         super(TabWidget, self).__init__(parent)
 
+        self.createLexer()
+
+        self.openedFiles = []
+
         self.tabCloseRequested.connect(self.closeTab)
 
-        self.line = 0
-        self.index = 0
-
-    def newTab(self, filePath, text, lexer):
+    def newTab(self, filePath, text):
         editor = Qsci.QsciScintilla()
         editor.setEolMode(Qsci.QsciScintilla.EolUnix)
-        editor.setLexer(lexer)
+        editor.setLexer(self.lexer if filePath.endswith('.py') else None)
         editor.setUtf8(True)
         editor.setText(text)
 
-        self.addTab(editor, filePath)
-
-        editor.setContextMenuPolicy(Qt.CustomContextMenu)   # no popup menu
+        editor.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)   # no popup menu
 
         editor.SendScintilla(Qsci.QsciScintilla.SCI_SETINDENTATIONGUIDES, Qsci.QsciScintilla.SC_IV_LOOKFORWARD) # Display indent guide
         editor.setIndentationsUseTabs(False)
@@ -208,68 +113,75 @@ class TabWidget(QtWidgets.QTabWidget):
         editor.setFolding(Qsci.QsciScintilla.PlainFoldStyle)
         editor.setFoldMarginColors(QtGui.QColor(39,43,48), QtGui.QColor(39,43,48))
 
-        editor.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        editor.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        editor.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        editor.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
 
         editor.setCaretForegroundColor(QtGui.QColor(255,255,255))   # cursor color
 
         editor.setStyleSheet('''QWidget {font-size:20px; border: 0px solid white; border-radius:1px;}''')
         
+        editor.textChanged.connect(self.on_textChanged)
+
         self.setCurrentWidget(editor)
         
-        if filePath != 'untitled':
-            self.ui.openedFiles.append(filePath)
+        self.addTab(editor, filePath)
 
-        editor.textChanged.connect(self.on_textChanged)
-        editor.cursorPositionChanged.connect(self.on_cursorPositionChanged)
+        self.openedFiles.append(filePath)
 
-    def closeTab(self, tabId):
-        if tabId < 0:
-            return
+    def closeTab(self, index):
+        filePath = self.tabText(index)
+        
+        if filePath.endswith('*'):
+            res = QtWidgets.QMessageBox.question(None, 'save before close?', f'The file {filePath[:-1]} has been changed, do you like to save it before close?',
+                                                 QtWidgets.QMessageBox.Yes|QtWidgets.QMessageBox.No|QtWidgets.QMessageBox.Cancel, QtWidgets.QMessageBox.Cancel)
+            if res == QtWidgets.QMessageBox.Cancel:
+                return
 
-        tabToolTip = self.tabToolTip(tabId)
+            else:
+                if res == QtWidgets.QMessageBox.Yes:
+                    self.ui.on_actionDownload_triggered()
 
-        self.removeTab(tabId)
+                filePath = filePath[:-1]
 
-        if tabToolTip in self.ui.openedFiles:
-            self.ui.openedFiles.remove(tabToolTip)
+        self.removeTab(index)
+
+        if filePath in self.openedFiles:
+            self.openedFiles.remove(filePath)
+
+    def createLexer(self):
+        self.lexer = Qsci.QsciLexerPython()
+
+        self.lexer.setDefaultPaper(QtGui.QColor(38,45,52))
+        self.lexer.setDefaultColor(QtGui.QColor(255,255,255))
+
+        self.lexer.setFont(QtGui.QFont(self.tr('Consolas'), 13, 1))
+
+        self.lexer.setColor(QtCore.Qt.darkGreen, Qsci.QsciLexerPython.Comment)
+        self.lexer.setColor(QtGui.QColor(255,128,0), Qsci.QsciLexerPython.TripleDoubleQuotedString)
+
+        self.lexer.setColor(QtGui.QColor(165,42,42), Qsci.QsciLexerPython.ClassName)
+        self.lexer.setColor(QtGui.QColor(0,138,140), Qsci.QsciLexerPython.FunctionMethodName)
+
+        self.lexer.setColor(QtCore.Qt.green, Qsci.QsciLexerPython.Keyword)
+        self.lexer.setColor(QtGui.QColor(255,0,255), Qsci.QsciLexerPython.Number)
+        self.lexer.setColor(QtCore.Qt.darkBlue, Qsci.QsciLexerPython.Decorator)
+        self.lexer.setColor(QtGui.QColor(165,152,36), Qsci.QsciLexerPython.DoubleQuotedString)
+        self.lexer.setColor(QtGui.QColor(165,152,36), Qsci.QsciLexerPython.SingleQuotedString)
 
     def on_textChanged(self):
         tabName = self.tabText(self.currentIndex())
 
-        if tabName == 'untitled' or tabName.startswith('*'):
+        if tabName.endswith('*'):
             return
 
-        self.setTabText(self.currentIndex(), '*' + tabName)
-
-    def on_cursorPositionChanged(self, line, index):
-        self.line  = line
-        self.index = index
-
-    def dragEnterEvent(self, event):
-        if event.mimeData().hasFormat("text/uri-list"):                                 # External drag
-            event.acceptProposedAction()
-        elif event.mimeData().hasFormat("application/x-qabstractitemmodeldatalist"):    # Internal drag
-            event.ignore()
-        else:
-            event.ignore()
-
-    def dropEvent(self, event):
-        if event.mimeData().hasUrls:
-            for url in event.mimeData().urls():
-                filePath = url.toLocalFile()
-            
-            if os.path.isfile(filePath) and filePath not in self.ui.openedFiles:
-                data = open(filePath, 'r', encoding='utf-8').read()
-
-                self.newTab(filePath, data, self.ui.lexer)
+        self.setTabText(self.currentIndex(), tabName + '*')
 
 
 class Terminal(QtWidgets.QTextEdit):
     def __init__(self, parent=None):
         super(Terminal, self).__init__(parent)
 
-        self.setContextMenuPolicy(Qt.CustomContextMenu)   # no popup menu
+        self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)   # no popup menu
 
         self.cursor = self.textCursor()
 
@@ -287,37 +199,37 @@ class Terminal(QtWidgets.QTextEdit):
             return QtWidgets.QMainWindow.eventFilter(self, watch, event)
 
         if event.type() == QtCore.QEvent.KeyPress:                
-            if event.key() == Qt.Key_Backspace:
+            if event.key() == QtCore.Qt.Key_Backspace:
                 self.keyPressMsg = '\x08'
                 self.ui.serQueue.put('UI:::%s' %self.keyPressMsg)
 
-            elif event.key() == Qt.Key_Tab:
+            elif event.key() == QtCore.Qt.Key_Tab:
                 self.keyPressMsg = '\x09'
                 self.ui.serQueue.put('UI:::%s' %self.keyPressMsg)
 
-            elif event.key() == Qt.Key_Delete:
+            elif event.key() == QtCore.Qt.Key_Delete:
                 self.keyPressMsg = '\x1b\x5b\x33\x7e'
                 self.ui.serQueue.put('UI:::%s' %self.keyPressMsg)
 
-            elif event.key() == Qt.Key_Up:
+            elif event.key() == QtCore.Qt.Key_Up:
                 self.keyPressMsg = '\x1b\x5b\x41'
                 self.ui.serQueue.put('UI:::%s' %self.keyPressMsg)
 
-            elif event.key() == Qt.Key_Down:
+            elif event.key() == QtCore.Qt.Key_Down:
                 self.keyPressMsg = '\x1b\x5b\x42'
                 self.ui.serQueue.put('UI:::%s' %self.keyPressMsg)
 
-            elif event.key() == Qt.Key_Right:
+            elif event.key() == QtCore.Qt.Key_Right:
                 self.keyPressMsg = '\x1b\x5b\x43'
                 self.ui.serQueue.put('UI:::%s' %self.keyPressMsg)
 
-            elif event.key() == Qt.Key_Left:
+            elif event.key() == QtCore.Qt.Key_Left:
                 self.keyPressMsg = '\x1b\x5b\x44'
                 self.ui.serQueue.put('UI:::%s' %self.keyPressMsg)
                 
             else:
                 self.keyPressMsg = 'else'
-                if event.key() in [Qt.Key_Return, Qt.Key_Enter]:
+                if event.key() in [QtCore.Qt.Key_Return, QtCore.Qt.Key_Enter]:
                     self.cursor.movePosition(QtGui.QTextCursor.End, QtGui.QTextCursor.MoveAnchor)
                     self.moveCursor(QtGui.QTextCursor.End)
 
@@ -447,11 +359,11 @@ class Terminal(QtWidgets.QTextEdit):
         self.moveCursor(QtGui.QTextCursor.End)
 
     def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
+        if event.button() == QtCore.Qt.LeftButton:
             cursor = self.cursorForPosition(event.pos())
             self.selectStartPos = cursor.position()
 
-        elif event.button() == Qt.RightButton:
+        elif event.button() == QtCore.Qt.RightButton:
             if self.ui.ser.isOpen():
                 self.keyPressMsg = ''
                 for char in QtWidgets.QApplication.clipboard().text():
@@ -460,7 +372,7 @@ class Terminal(QtWidgets.QTextEdit):
                     self.ui.serQueue.put('UI:::%s' %char)
 
     def mouseMoveEvent(self, event):
-        if event.button() == Qt.NoButton:
+        if event.button() == QtCore.Qt.NoButton:
             cursor = self.cursorForPosition(event.pos())
             selectEndPos = cursor.position()
 
@@ -471,7 +383,7 @@ class Terminal(QtWidgets.QTextEdit):
             cursor.select(QtGui.QTextCursor.WordUnderCursor)
 
     def mouseReleaseEvent(self, event):
-        if event.button() == Qt.LeftButton:         # Ctrl+C 是upy的终止信号，因此用鼠标释放触发赋值
+        if event.button() == QtCore.Qt.LeftButton:         # Ctrl+C 是upy的终止信号，因此用鼠标释放触发赋值
             if self.textCursor() != self.cursor:    # 有内容被选中
                 self.copy()
                 self.setTextCursor(self.cursor)
@@ -481,7 +393,7 @@ class RenameDialog(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super(RenameDialog, self).__init__(parent)
 
-        self.setWindowFlags(Qt.WindowCloseButtonHint)
+        self.setWindowFlags(QtCore.Qt.WindowCloseButtonHint)
         self.setWindowTitle('Rename as')
         self.setWindowIcon(QtGui.QIcon('images/logo.png'))
         self.setStyleSheet('''QDialog { background-color: rgb(236, 236, 236); color: black; }

@@ -103,11 +103,11 @@ class SerThread(QtCore.QThread):
 
 
 class CmdThread(QtCore.QThread):
-    sig_boardFileDeleted = pyqtSignal(str)
-    sig_boardFileRenamed = pyqtSignal(str, str) # oldPath, newPath
-    sig_boardFileLoaded  = pyqtSignal(str, str) # filePath, fileData
-    sig_boardFileListed  = pyqtSignal(dict)
-    sig_messageReceived  = pyqtSignal(str)
+    sig_fileLoaded  = pyqtSignal(str, str) # filePath, fileData
+    sig_fileListed  = pyqtSignal(dict)
+    sig_fileRenamed = pyqtSignal(str, str) # oldPath, newPath
+    sig_fileDeleted = pyqtSignal(str)
+    sig_msgReceived = pyqtSignal(str)
 
     def __init__(self, parent):
         super(CmdThread, self).__init__(parent)
@@ -122,14 +122,11 @@ class CmdThread(QtCore.QThread):
         while True:
             msg = self.ui.cmdQueue.get().split(':::')
 
-            if msg[0] == 'importOS':
+            if   msg[0] == 'importOS':
                 self.importOS()
 
-            elif msg[0] == 'getcwd':
-                self.getcwd()
-
             elif msg[0] == 'listFile':
-                self.listFile()
+                self.listFile(msg[1])
 
             elif msg[0] == 'loadFile':
                 self.loadFile(msg[1])
@@ -140,14 +137,17 @@ class CmdThread(QtCore.QThread):
             elif msg[0] == 'execFile':
                 self.execFile(msg[1])
 
-            elif msg[0] == 'deleteFile':
-                self.deleteFile(msg[1])
+            elif msg[0] == 'createDir':
+                self.createDir(msg[1])
+
+            elif msg[0] == 'createFile':
+                pass
 
             elif msg[0] == 'renameFile':
                 self.renameFile(msg[1], msg[2])
 
-            elif msg[0] == 'createDir':
-                self.createDir(msg[1])
+            elif msg[0] == 'deleteFile':
+                self.deleteFile(msg[1])
 
             elif msg[0] == 'close':
                 break
@@ -167,11 +167,11 @@ class CmdThread(QtCore.QThread):
         while self.serData == '':
             time.sleep(0.005)
             if time.time() - startTime > 3:
-                self.sig_messageReceived.emit('%s timeout' %oper)
+                self.sig_msgReceived.emit('%s timeout' %oper)
                 return 'timeout'
 
         if self.serData.find('Traceback') >= 0:
-            self.sig_messageReceived.emit(self.serData)
+            self.sig_msgReceived.emit(self.serData)
             return 'error'
 
         elif self.serData.find('... ') >= 0:
@@ -180,21 +180,19 @@ class CmdThread(QtCore.QThread):
         
         return 'ok'
 
-    def getcwd(self):
-        self.ui.serQueue.put('Cmd:::os.getcwd()\r\n')
-        self.waitUtilComplete('getcwd')
+    def listFile(self, path):
+        data = self.listFileSub(path)
 
-        dir = eval(self.serData.split('\r\n')[1])
-        if dir in ['/', '/flash']:      # Flash存储器挂载点
-            self.ui.dirFlash = dir
-            self.ui.treeFlash.setToolTip(dir)
+        if path == '/flash' and not isinstance(data, dict):
+            self.ui.dirFlash = '/'
+            self.ui.treeFlash.setToolTip(self.ui.dirFlash)
 
-    def listFile(self):
-        res = self.listFileDir(self.ui.dirFlash)
+            data = self.listFileSub(self.ui.dirFlash)
 
-        self.sig_boardFileListed.emit(res)
+        if isinstance(data, dict):
+            self.sig_fileListed.emit(data)
 
-    def listFileDir(self, dir):
+    def listFileSub(self, dir):
         self.ui.serQueue.put("Cmd:::os.listdir('%s')\r\n" %dir)
         res = self.waitUtilComplete('listFile %s' %dir)
         if res != 'ok':
@@ -210,7 +208,7 @@ class CmdThread(QtCore.QThread):
             match = re.search(r'\((\d+), ', self.serData)
             if int(match.group(1)) == 0o40000:
                 if file not in ['System Volume Information']:
-                    data[dir].append(self.listFileDir('%s/%s' %('' if dir == '/' else dir, file)))
+                    data[dir].append(self.listFileSub('%s/%s' %('' if dir == '/' else dir, file)))
             else:
                 data[dir].append(file)
 
@@ -222,35 +220,35 @@ class CmdThread(QtCore.QThread):
         if res != 'ok':
             return res
         
-        self.serData = '\n'.join(self.serData.split('\r\n')[1:-1]).replace('\r', '\n')  # upy发送出的数据回车都是‘\r\n’
+        self.serData = '\n'.join(self.serData.split('\r\n')[1:-1])  # upy发送出的数据回车都是‘\r\n’
 
-        self.sig_boardFileLoaded.emit(filePath, self.serData)
+        self.sig_fileLoaded.emit(filePath, self.serData)
 
-    def downFile(self, PCFilePath, boardFilePath):
+    def downFile(self, filePath, fileData):
         self.ui.serQueue.put('Cmd:::\x03')
         self.waitUtilComplete('downFile')
         
-        self.ui.serQueue.put("Cmd:::tempfile=open('%s', 'w', encoding='utf-8')\r\n" %boardFilePath)
+        self.ui.serQueue.put(f"Cmd:::tempfile=open('{filePath}', 'w', encoding='utf-8')\r\n")
         res = self.waitUtilComplete('downFile open')
         if res != 'ok':
-            self.sig_messageReceived.emit('downFile Fail')
+            self.sig_msgReceived.emit('downFile Fail')
             return res
 
-        for line in iter(partial(open(PCFilePath, 'r', encoding='utf-8').read, 128), ''):
-            self.sig_messageReceived.emit('.')
-            self.ui.serQueue.put('Cmd:::tempfile.write(%s)\r\n' %repr(line))
+        for i in range(0, len(fileData), 128):
+            self.sig_msgReceived.emit('.')
+            self.ui.serQueue.put(f'Cmd:::tempfile.write({repr(fileData[i:i+128])})\r\n')
             res = self.waitUtilComplete('downFile write')
             if res != 'ok':
-                self.sig_messageReceived.emit('downFile Fail')
+                self.sig_msgReceived.emit('downFile Fail')
                 return res
 
         self.ui.serQueue.put('Cmd:::tempfile.close()\r\n')
         res = self.waitUtilComplete('downFile close')
         if res != 'ok':
-            self.sig_messageReceived.emit('downFile Fail')
+            self.sig_msgReceived.emit('downFile Fail')
             return 'res'
 
-        self.sig_messageReceived.emit('downFile ok')
+        self.sig_msgReceived.emit('downFile ok')
 
     def execFile(self, filePath):
         self.ui.serQueue.put("exec_:::exec(open('%s').read(), globals())\r\n" %filePath)
@@ -271,7 +269,7 @@ class CmdThread(QtCore.QThread):
         if res != 'ok':
             return res
        
-        self.sig_boardFileDeleted.emit(filePath)
+        self.sig_fileDeleted.emit(filePath)
 
     def renameFile(self, oldPath, newPath):
         self.ui.serQueue.put("Cmd:::os.stat('%s')\r\n" %oldPath)
@@ -284,7 +282,7 @@ class CmdThread(QtCore.QThread):
         if res != 'ok':
             return res
 
-        self.sig_messageReceived.emit('renameFile ok')
+        self.sig_msgReceived.emit('renameFile ok')
 
     def createDir(self, path):
         self.ui.serQueue.put("Cmd:::os.mkdir('%s')\r\n" %path)
@@ -292,7 +290,7 @@ class CmdThread(QtCore.QThread):
         if res != 'ok':
             return res
 
-        self.sig_messageReceived.emit('createDir ok')
+        self.sig_msgReceived.emit('createDir ok')
     
     def on_msgToCmdReceived(self, data):
         self.serDataBuf += data
