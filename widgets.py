@@ -55,12 +55,66 @@ class TreeView(QtWidgets.QTreeView):
         self.pressedFileType = index.data(QtCore.Qt.WhatsThisRole)
         self.pressedFilePath = ''
         while index.data():
-            self.pressedFilePath = '/' + index.data() + self.pressedFilePath
+            self.pressedFilePath = index.data() + '/' + self.pressedFilePath
             index = index.parent()
-        self.pressedFilePath = self.pressedFilePath[1:]
+        self.pressedFilePath = self.pressedFilePath[:-1]
 
         if self.ui.dirFlash == '/':
-            self.pressedFilePath = self.pressedFilePath[len('/flash'):]
+            if self.pressedFilePath == '/flash':
+                self.pressedFilePath = '/'
+            else:
+                self.pressedFilePath = self.pressedFilePath[len('/flash'):]
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasFormat("text/uri-list"):
+            self.dragFrom = "External"
+
+            event.acceptProposedAction()
+
+        elif event.mimeData().hasFormat("application/x-qabstractitemmodeldatalist"):
+            self.dragFrom = "Internal"
+
+            self.dragIndex = self.indexAt(event.pos())
+            if not self.dragIndex.data():
+                return
+            
+            event.acceptProposedAction()
+
+
+    def dragMoveEvent(self, event): # for drag work
+        index = self.indexAt(event.pos())
+        if not index.data() or index.data(QtCore.Qt.WhatsThisRole) != 'dir':
+            event.ignore()
+        else:
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        if not self.ui.ser.isOpen():
+            self.ui.terminal.append('serial not opened')
+            return
+
+        index = self.indexAt(event.pos())
+        if not index.data() or index.data(QtCore.Qt.WhatsThisRole) != 'dir':
+            return
+
+        dropDir = index.data()
+
+        if self.dragFrom == "External":
+            for url in event.mimeData().urls():
+                filePath = url.toLocalFile()
+
+                if os.path.isfile(filePath):
+                    pass
+
+                elif os.path.isdir(filePath):
+                    pass
+            
+        elif self.dragFrom=="Internal":
+            if self.dragIndex.data(QtCore.Qt.WhatsThisRole) == 'file':
+                pass
+
+            elif self.dragIndex.data(QtCore.Qt.WhatsThisRole) == 'dir':
+                pass
 
 
 class TabWidget(QtWidgets.QTabWidget):

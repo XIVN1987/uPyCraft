@@ -171,7 +171,6 @@ class CmdThread(QtCore.QThread):
             return False
         
         if self.serRecv.find('Traceback') >= 0:
-            self.ui.terminal.append(self.serRecv)
             return False
 
         elif self.serRecv.find('... ') >= 0:

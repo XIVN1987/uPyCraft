@@ -10,6 +10,11 @@
     <height>600</height>
    </rect>
   </property>
+  <property name="font">
+   <font>
+    <family>Consolas</family>
+   </font>
+  </property>
   <property name="windowTitle">
    <string>uPyCraft</string>
   </property>
@@ -157,7 +162,7 @@ QTabBar::close-button:hover {
          </size>
         </property>
         <property name="acceptDrops">
-         <bool>true</bool>
+         <bool>false</bool>
         </property>
         <property name="styleSheet">
          <string notr="true">QWidget {

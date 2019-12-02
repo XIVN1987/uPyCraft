@@ -37,6 +37,7 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
         self.dirFlash = '/flash'    # Flash root directory: '/flash' or '/'
 
         self.treeFlash = QtGui.QStandardItem(QtGui.QIcon('images/treeMenuClosed.png'), self.dirFlash)
+        self.treeFlash.setData('dir', QtCore.Qt.WhatsThisRole)
         self.treeFlash.setToolTip(self.dirFlash)
 
         model = QtGui.QStandardItemModel(self.tree)
@@ -361,8 +362,6 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
 
 
 if __name__ == '__main__':
-    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_DontShowIconsInMenus)
-    QtWidgets.QApplication.setFont(QtGui.QFont('Source Code Pro', 10))
     app = QtWidgets.QApplication(sys.argv)
     win = uPyCraft()
     win.show()

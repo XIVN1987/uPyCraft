@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\Program\Ubuntu\uPyCraft\uPyCraft.ui'
+# Form implementation generated from reading ui file 'C:\Ubuntu\uPyCraft\uPyCraft.ui'
 #
-# Created by: PyQt5 UI code generator 5.11.2
+# Created by: PyQt5 UI code generator 5.11.3
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -12,6 +12,9 @@ class Ui_uPyCraft(object):
     def setupUi(self, uPyCraft):
         uPyCraft.setObjectName("uPyCraft")
         uPyCraft.resize(902, 600)
+        font = QtGui.QFont()
+        font.setFamily("Consolas")
+        uPyCraft.setFont(font)
         icon = QtGui.QIcon()
         icon.addPixmap(QtGui.QPixmap("images/logo.ico"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         uPyCraft.setWindowIcon(icon)
@@ -98,7 +101,7 @@ class Ui_uPyCraft(object):
         self.vSplitter.setObjectName("vSplitter")
         self.tabWidget = TabWidget(self.vSplitter)
         self.tabWidget.setMinimumSize(QtCore.QSize(0, 100))
-        self.tabWidget.setAcceptDrops(True)
+        self.tabWidget.setAcceptDrops(False)
         self.tabWidget.setStyleSheet("QWidget {\n"
 "    background-color: qlineargradient(x1: 0, x2: 1, stop: 0 #262D34, stop: 1 #222529);\n"
 "    border-width: 0px;\n"
