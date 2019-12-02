@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\Ubuntu\uPyCraft\uPyCraft.ui'
+# Form implementation generated from reading ui file 'D:\Program\Ubuntu\uPyCraft\uPyCraft.ui'
 #
-# Created by: PyQt5 UI code generator 5.11.3
+# Created by: PyQt5 UI code generator 5.11.2
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -27,9 +27,12 @@ class Ui_uPyCraft(object):
 "    background-color: rgb(236, 236, 236);\n"
 "}")
         self.hSplitter.setOrientation(QtCore.Qt.Horizontal)
-        self.hSplitter.setHandleWidth(1)
+        self.hSplitter.setHandleWidth(2)
+        self.hSplitter.setChildrenCollapsible(False)
         self.hSplitter.setObjectName("hSplitter")
         self.tree = TreeView(self.hSplitter)
+        self.tree.setMinimumSize(QtCore.QSize(160, 0))
+        self.tree.setMaximumSize(QtCore.QSize(300, 16777215))
         self.tree.setAcceptDrops(True)
         self.tree.setStyleSheet("QTreeView {\n"
 "    background-color: qlineargradient(y1: 0, y2: 1,stop: 0 #0D0B0B, stop: 1 #5D5C5C);\n"
@@ -89,10 +92,12 @@ class Ui_uPyCraft(object):
 "}\n"
 "")
         self.vSplitter.setOrientation(QtCore.Qt.Vertical)
-        self.vSplitter.setOpaqueResize(False)
-        self.vSplitter.setHandleWidth(1)
+        self.vSplitter.setOpaqueResize(True)
+        self.vSplitter.setHandleWidth(2)
+        self.vSplitter.setChildrenCollapsible(False)
         self.vSplitter.setObjectName("vSplitter")
         self.tabWidget = TabWidget(self.vSplitter)
+        self.tabWidget.setMinimumSize(QtCore.QSize(0, 100))
         self.tabWidget.setAcceptDrops(True)
         self.tabWidget.setStyleSheet("QWidget {\n"
 "    background-color: qlineargradient(x1: 0, x2: 1, stop: 0 #262D34, stop: 1 #222529);\n"
@@ -123,6 +128,7 @@ class Ui_uPyCraft(object):
         self.tabWidget.setMovable(True)
         self.tabWidget.setObjectName("tabWidget")
         self.terminal = Terminal(self.vSplitter)
+        self.terminal.setMinimumSize(QtCore.QSize(0, 100))
         self.terminal.setAcceptDrops(False)
         self.terminal.setStyleSheet("QTextEdit {\n"
 "    background-color: qlineargradient(x1: 0, x2: 1, stop: 0 #262D34, stop: 1 #222529);\n"

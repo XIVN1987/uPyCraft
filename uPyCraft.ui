@@ -49,9 +49,24 @@ QSplitter::handle {
        <enum>Qt::Horizontal</enum>
       </property>
       <property name="handleWidth">
-       <number>1</number>
+       <number>2</number>
+      </property>
+      <property name="childrenCollapsible">
+       <bool>false</bool>
       </property>
       <widget class="TreeView" name="tree">
+       <property name="minimumSize">
+        <size>
+         <width>160</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>300</width>
+         <height>16777215</height>
+        </size>
+       </property>
        <property name="acceptDrops">
         <bool>true</bool>
        </property>
@@ -126,12 +141,21 @@ QTabBar::close-button:hover {
         <enum>Qt::Vertical</enum>
        </property>
        <property name="opaqueResize">
-        <bool>false</bool>
+        <bool>true</bool>
        </property>
        <property name="handleWidth">
-        <number>1</number>
+        <number>2</number>
+       </property>
+       <property name="childrenCollapsible">
+        <bool>false</bool>
        </property>
        <widget class="TabWidget" name="tabWidget">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>100</height>
+         </size>
+        </property>
         <property name="acceptDrops">
          <bool>true</bool>
         </property>
@@ -177,6 +201,12 @@ QScrollBar::sub-page:vertical {
         </property>
        </widget>
        <widget class="Terminal" name="terminal">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>100</height>
+         </size>
+        </property>
         <property name="acceptDrops">
          <bool>false</bool>
         </property>

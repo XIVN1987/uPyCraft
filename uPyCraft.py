@@ -4,6 +4,7 @@ import sys
 import time
 import queue
 import configparser
+import posixpath as xpath
 
 import serial
 from serial.tools import list_ports
@@ -11,7 +12,7 @@ from serial.tools import list_ports
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 from threads import SerThread, CmdThread
-from widgets import RenameDialog, NewDirDialog
+from widgets import RenameDialog, NewFilDialog, NewDirDialog
 
 
 from uPyCraft_UI import Ui_uPyCraft
@@ -25,9 +26,6 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
         self.terminal.ui  = self
         self.tabWidget.ui = self
         
-        self.hSplitter.setSizes([150, 750])
-        self.vSplitter.setSizes([600, 300])
-
         ''' Serial Select '''
         self.cmbSer = QtWidgets.QComboBox(self)
         for port, desc, hwid in list_ports.comports():
@@ -46,38 +44,40 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
         self.tree.setModel(model)
 
         self.tree.actionRun.triggered.connect(self.on_treeActionRun_triggered)
-        self.tree.actionDelete.triggered.connect(self.on_treeActionDelete_triggered)
-        self.tree.actionRename.triggered.connect(self.on_treeActionRename_triggered)
         self.tree.actionNewfil.triggered.connect(self.on_treeActionNewfil_triggered)
         self.tree.actionNewdir.triggered.connect(self.on_treeActionNewdir_triggered)
+        self.tree.actionRename.triggered.connect(self.on_treeActionRename_triggered)
+        self.tree.actionDelete.triggered.connect(self.on_treeActionDelete_triggered)
         
-        ''' Dialogs '''
-        self.renameDialog = RenameDialog()
-        self.renameDialog.btnOK.clicked.connect(self.on_renameDialog_btnOK_clicked)
+        self.initSetting()
 
-        self.newdirDialog = NewDirDialog()
-        self.newdirDialog.btnOK.clicked.connect(self.on_newdirDialog_btnOK_clicked)
-
-
+        ''' Threads '''
         self.inDownloading = False
         self.isDownloadAndRun = False
 
-        self.initSetting()
+        self.serQueue = queue.Queue()
+        self.cmdQueue = queue.Queue()
 
         self.ser = serial.Serial(baudrate=115200, timeout=0.001)
 
         self.serThread = SerThread(self)
         self.serThread.sig_msgToTrmReceived.connect(self.terminal.on_msgToTrmReceived)
 
-        self.cmdQueue = queue.Queue()
-        self.serQueue = queue.Queue()
-
         self.cmdThread = CmdThread(self)
-        self.cmdThread.sig_fileLoaded.connect(self.on_fileLoaded)
         self.cmdThread.sig_fileListed.connect(self.on_fileListed)
+        self.cmdThread.sig_fileLoaded.connect(self.on_fileLoaded)
         self.cmdThread.sig_fileRenamed.connect(self.on_fileRenamed)
         self.cmdThread.sig_fileDeleted.connect(self.on_fileDeleted)
-        self.cmdThread.sig_msgReceived.connect(self.on_msgReceived)
+
+        ''' Dialogs '''
+        self.renameDialog = RenameDialog()
+        self.renameDialog.btnOK.clicked.connect(self.on_renameDialog_btnOK_clicked)
+
+        self.newfilDialog = NewFilDialog()
+        self.newfilDialog.btnOK.clicked.connect(self.on_newfilDialog_btnOK_clicked)
+
+        self.newdirDialog = NewDirDialog()
+        self.newdirDialog.btnOK.clicked.connect(self.on_newdirDialog_btnOK_clicked)
 
     def initSetting(self):
         if not os.path.exists('setting.ini'):
@@ -95,6 +95,16 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
         if sel != -1:
             self.cmbSer.setCurrentIndex(sel)
 
+        if not self.conf.has_section('window'):
+            self.conf.add_section('window')
+            self.conf.set('window', 'window', '(900, 600)')
+            self.conf.set('window', 'hSplitter', '[200, 800]')
+            self.conf.set('window', 'vSplitter', '[700, 300]')
+
+        self.resize(*eval(self.conf.get('window', 'window')))
+        self.hSplitter.setSizes(eval(self.conf.get('window', 'hSplitter')))
+        self.vSplitter.setSizes(eval(self.conf.get('window', 'vSplitter')))
+
     @QtCore.pyqtSlot()
     def on_actionConnect_triggered(self):
         try:
@@ -106,9 +116,8 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
             return
 
         self.ser.write(b'\x03')
-
         recv = b''
-        for i in range(200):
+        for i in range(int(2/0.01)):
             time.sleep(0.01)
             recv += self.ser.read(self.ser.in_waiting)
             if b'>>> ' in recv:
@@ -134,7 +143,15 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
         self.actionDisconnect.setVisible(True)
         
     @QtCore.pyqtSlot()
-    def on_actionDisconnect_triggered(self):        
+    def on_actionDisconnect_triggered(self):
+        for i in range(self.tabWidget.count()):
+            index = self.tabWidget.currentIndex()
+            if self.tabWidget.tabText(index).endswith('*'):
+                QtWidgets.QMessageBox.warning(self, 'Unsaved File!', 'There are files not saved, deal with them first.', QtWidgets.QMessageBox.Ok)
+                return
+
+            self.tabWidget.closeTab(index)
+        
         self.serQueue.put('UI:::\x03')
         self.serQueue.put('close')
         self.cmdQueue.put('close')
@@ -144,6 +161,7 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
         self.serThread.exit()
         self.cmdThread.exit()
 
+        self.terminal.clear()
         self.terminal.setReadOnly(True)
         self.terminal.setEventFilterEnable(False)
 
@@ -217,7 +235,7 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
 
     @QtCore.pyqtSlot(QtCore.QModelIndex)
     def on_tree_doubleClicked(self, index):
-        if self.tree.pressedFilePath.endswith('.py') or self.tree.pressedFilePath.endswith('.ini'):
+        if self.tree.pressedFileType == 'file':
             self.cmdQueue.put(f'loadFile:::{self.tree.pressedFilePath}')
     
     def on_treeActionRun_triggered(self):
@@ -227,31 +245,19 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
 
         self.cmdQueue.put(f'execFile:::{self.tree.pressedFilePath}')
 
-    def on_treeActionRename_triggered(self):
-        self.renameDialog.exec()
-
-    def on_renameDialog_btnOK_clicked(self):
-        newName = self.renameDialog.linName.text()
-
-        if self.tree.pressedFile.startswith('/flash/'):
-            newPath = os.path.split(self.tree.pressedFilePath)[0] + '/' + newName
-            self.cmdQueue.put('renameFile:::%s:::%s' %(self.tree.pressedFilePath, newPath))
-
-        elif self.tree.pressedFile.count('/') > 0:
-            os.rename(self.tree.pressedFilePath, os.path.join(os.path.split(self.tree.pressedFilePath)[0], newName))
-
-    def on_treeActionDelete_triggered(self):
-        res = QtWidgets.QMessageBox.question(self, 'confirm delete?', self.tree.pressedFile, QtWidgets.QMessageBox.Ok|QtWidgets.QMessageBox.Cancel, QtWidgets.QMessageBox.Cancel)
-        if res == QtWidgets.QMessageBox.Cancel:
-            return
-
-        self.cmdQueue.put('deleteFile:::%s' %self.tree.pressedFilePath)
-
     def on_treeActionNewfil_triggered(self):
         if not self.ser.is_open:
             self.terminal.append('serial not opened')
             return
-        
+
+        self.newfilDialog.exec()
+    
+    def on_newfilDialog_btnOK_clicked(self):
+        name = self.newfilDialog.linName.text()
+        path = xpath.join(self.tree.pressedFilePath, name)
+
+        self.cmdQueue.put(f'createFile:::{path}')
+
     def on_treeActionNewdir_triggered(self):
         if not self.ser.is_open:
             self.terminal.append('serial not opened')
@@ -260,29 +266,27 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
         self.newdirDialog.exec()
 
     def on_newdirDialog_btnOK_clicked(self):
-        dirName = self.newdirDialog.linName.text()
+        name = self.newdirDialog.linName.text()
+        path = xpath.join(self.tree.pressedFilePath, name)
 
-        if self.tree.pressedFile == '/flash':
-            self.cmdQueue.put('createDir:::%s' %os.path.join(self.dirFlash, dirName).replace('\\', '/'))
+        self.cmdQueue.put(f'createDir:::{path}')
 
-        elif self.tree.pressedFile.count('/') > 0:
-            os.mkdir(os.path.join(self.tree.pressedFilePath, dirName))
+    def on_treeActionRename_triggered(self):
+        self.renameDialog.exec()
 
-    def on_fileLoaded(self, filePath, fileData):
-        if filePath not in self.tabWidget.openedFiles:
-            self.tabWidget.newTab(filePath, fileData)
-        else:
-            for i in range(len(self.tabWidget.openedFiles)):
-                if self.tabWidget.tabText(i) == filePath:
-                    self.tabWidget.setCurrentIndex(i)
-                    break
+    def on_renameDialog_btnOK_clicked(self):
+        newName = self.renameDialog.linName.text()
+        newPath = os.path.split(self.tree.pressedFilePath)[0] + '/' + newName
+        self.cmdQueue.put(f'renameFile:::{self.tree.pressedFilePath}:::{newPath}')
 
-    def on_fileListed(self, data):
-        if not isinstance(data, dict):
-            self.terminal.append('refresh tree error.')
-            self.inDownloading = False
+    def on_treeActionDelete_triggered(self):
+        res = QtWidgets.QMessageBox.question(self, 'confirm delete?', self.tree.pressedFilePath, QtWidgets.QMessageBox.Ok|QtWidgets.QMessageBox.Cancel, QtWidgets.QMessageBox.Cancel)
+        if res == QtWidgets.QMessageBox.Cancel:
             return
 
+        self.cmdQueue.put(f'deleteFile:::{self.tree.pressedFilePath}')
+
+    def on_fileListed(self, data):
         row = self.treeFlash.rowCount()
         self.treeFlash.removeRows(0, row)
         
@@ -292,6 +296,7 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
     def createTree(self, root, msg):
         if type(msg) is str:
             item = QtGui.QStandardItem(QtGui.QIcon('images/treeFileOpen.png'), msg)
+            item.setData('file', QtCore.Qt.WhatsThisRole)
             root.appendRow(item)
 
         elif type(msg) is list:
@@ -301,6 +306,7 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
         elif type(msg) is dict:
             for dir in msg:
                 item = QtGui.QStandardItem(QtGui.QIcon('images/treeMenuClosed.png'), os.path.split(dir)[-1])
+                item.setData('dir', QtCore.Qt.WhatsThisRole)
                 root.appendRow(item)
 
                 self.createTree(item, msg[dir])
@@ -315,53 +321,41 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
 
         return sorted(dirs, key=lambda dict: dict.keys()) + sorted(files)
 
-    def on_fileRenamed(self, oldName, newName):
+    def on_fileLoaded(self, filePath, fileData):
+        if filePath not in self.tabWidget.openedFiles:
+            self.tabWidget.newTab(filePath, fileData)
+        
+        for i in range(self.tabWidget.count()):
+            if self.tabWidget.tabText(i) == filePath:
+                self.tabWidget.setCurrentIndex(i)
+                break
+
+    def on_fileRenamed(self, oldPath, newPath):
+        if oldPath in self.tabWidget.openedFiles:
+            for i in range(self.tabWidget.count()):
+                if self.tabWidget.tabText(i) == oldPath:
+                    self.tabWidget.setTabText(i, newPath)
+                    break
+
         self.cmdQueue.put(f'listFile:::{self.dirFlash}')
 
     def on_fileDeleted(self, filePath):
-        filePath = self.Workspace + filePath   # 将板上路径转换为PC上路径，如/boot.py变成<Workspace>/boot.py
-        
-        self.closeTabPage(filePath)
-        
-        self.cmdQueue.put(f'listFile:::{self.dirFlash}')
-
-    def on_msgReceived(self, msg):
-        if msg in ['import os timeout', 'getcwd timeout']:
-            self.terminal.append(msg)
-            self.ser.close()
-
-        elif msg == 'downFile ok':
-            self.terminal.append(msg)
-            self.inDownloading = False
-
-            if self.isDownloadAndRun:
-                self.cmdQueue.put(f'execFile:::{self.isDownloadAndRun}')
-
-                self.isDownloadAndRun = False
-
-        elif msg == 'downFile Fail':
-            self.terminal.append(msg)
-            self.inDownloading = False
-
-        elif msg in ['deleteFile ok', 'renameFile ok', 'createDir ok']:
-            self.cmdQueue.put(f'listFile:::{self.dirFlash}')
-
-        elif msg == '.':
-            self.terminal.cursor.insertText(msg)
-        
-        else:
-            self.terminal.append(msg)
-
-    def closeTabPage(self, filePath):
         if filePath in self.tabWidget.openedFiles:
-            for i in range(len(self.tabWidget.openedFiles)):
+            for i in range(self.tabWidget.count()):
                 if self.tabWidget.tabText(i) == filePath:
                     self.tabWidget.removeTab(i)
                     self.tabWidget.openedFiles.remove(filePath)
                     break
+        
+        self.cmdQueue.put(f'listFile:::{self.dirFlash}')
 
     def closeEvent(self,event):
         self.conf.set('serial', 'port', self.cmbSer.currentText())
+
+        if not self.isMaximized():
+            self.conf.set('window', 'window', f'({self.width()}, {self.height()})')
+            self.conf.set('window', 'hSplitter', f'{self.hSplitter.sizes()}')
+            self.conf.set('window', 'vSplitter', f'{self.vSplitter.sizes()}')
 
         self.conf.write(open('setting.ini', 'w'))
 

@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import posixpath as xpath
 
 from PyQt5 import QtCore, QtGui, QtWidgets, Qsci
 
@@ -12,8 +13,8 @@ class TreeView(QtWidgets.QTreeView):
         self.createContextMenu()
         self.customContextMenuRequested.connect(self.on_ContextMenuRequested)
 
-        self.pressedFile = ''
         self.pressedFilePath = ''
+        self.pressedFileType = ''
         self.pressed.connect(self.on_item_pressed)
 
     def createContextMenu(self):
@@ -34,37 +35,33 @@ class TreeView(QtWidgets.QTreeView):
     def on_ContextMenuRequested(self, point):
         self.popupMenu.clear()
 
-        if self.pressedFile == '/flash':
+        if self.pressedFilePath == self.ui.dirFlash:
             self.popupMenu.addAction(self.actionNewfil)
             self.popupMenu.addAction(self.actionNewdir)
-        elif self.pressedFile.endswith('.py'):
-            self.popupMenu.addAction(self.actionRun)
+        elif self.pressedFileType == 'dir':
+            self.popupMenu.addAction(self.actionNewfil)
+            self.popupMenu.addAction(self.actionNewdir)
             self.popupMenu.addAction(self.actionRename)
             self.popupMenu.addAction(self.actionDelete)
         else:
-            self.popupMenu.addAction(self.actionNewfil)
-            self.popupMenu.addAction(self.actionNewdir)
+            if self.pressedFilePath.endswith('.py'):
+                self.popupMenu.addAction(self.actionRun)
             self.popupMenu.addAction(self.actionRename)
             self.popupMenu.addAction(self.actionDelete)
 
         self.popupMenu.exec_(self.mapToGlobal(point))
 
     def on_item_pressed(self, index):
-        self.pressedFile = ''
+        self.pressedFileType = index.data(QtCore.Qt.WhatsThisRole)
+        self.pressedFilePath = ''
         while index.data():
-            self.pressedFile = '/' + index.data() + self.pressedFile
-            indexPre = index
+            self.pressedFilePath = '/' + index.data() + self.pressedFilePath
             index = index.parent()
-        self.pressedFile = self.pressedFile[1:]
+        self.pressedFilePath = self.pressedFilePath[1:]
 
-        if self.pressedFile == '/flash':
-            self.pressedFilePath = self.ui.dirFlash
-        elif self.pressedFile.startswith('/flash/'):
-            self.pressedFilePath = os.path.join(self.ui.dirFlash, self.pressedFile[len('/flash/'):]).replace('\\', '/')
-        elif self.pressedFile.count('/') > 0:
-            self.pressedFilePath = self.model().itemFromIndex(indexPre).toolTip() + self.pressedFile[self.pressedFile.index('/'):]
-        else:
-            self.pressedFilePath = self.model().itemFromIndex(indexPre).toolTip()
+        if self.ui.dirFlash == '/':
+            self.pressedFilePath = self.pressedFilePath[len('/flash'):]
+
 
 class TabWidget(QtWidgets.QTabWidget):
     def __init__(self, parent=None):
@@ -201,31 +198,31 @@ class Terminal(QtWidgets.QTextEdit):
         if event.type() == QtCore.QEvent.KeyPress:                
             if event.key() == QtCore.Qt.Key_Backspace:
                 self.keyPressMsg = '\x08'
-                self.ui.serQueue.put('UI:::%s' %self.keyPressMsg)
+                self.ui.serQueue.put(f'UI:::{self.keyPressMsg}')
 
             elif event.key() == QtCore.Qt.Key_Tab:
                 self.keyPressMsg = '\x09'
-                self.ui.serQueue.put('UI:::%s' %self.keyPressMsg)
+                self.ui.serQueue.put(f'UI:::{self.keyPressMsg}')
 
             elif event.key() == QtCore.Qt.Key_Delete:
                 self.keyPressMsg = '\x1b\x5b\x33\x7e'
-                self.ui.serQueue.put('UI:::%s' %self.keyPressMsg)
+                self.ui.serQueue.put(f'UI:::{self.keyPressMsg}')
 
             elif event.key() == QtCore.Qt.Key_Up:
                 self.keyPressMsg = '\x1b\x5b\x41'
-                self.ui.serQueue.put('UI:::%s' %self.keyPressMsg)
+                self.ui.serQueue.put(f'UI:::{self.keyPressMsg}')
 
             elif event.key() == QtCore.Qt.Key_Down:
                 self.keyPressMsg = '\x1b\x5b\x42'
-                self.ui.serQueue.put('UI:::%s' %self.keyPressMsg)
+                self.ui.serQueue.put(f'UI:::{self.keyPressMsg}')
 
             elif event.key() == QtCore.Qt.Key_Right:
                 self.keyPressMsg = '\x1b\x5b\x43'
-                self.ui.serQueue.put('UI:::%s' %self.keyPressMsg)
+                self.ui.serQueue.put(f'UI:::{self.keyPressMsg}')
 
             elif event.key() == QtCore.Qt.Key_Left:
                 self.keyPressMsg = '\x1b\x5b\x44'
-                self.ui.serQueue.put('UI:::%s' %self.keyPressMsg)
+                self.ui.serQueue.put(f'UI:::{self.keyPressMsg}')
                 
             else:
                 self.keyPressMsg = 'else'
@@ -233,12 +230,12 @@ class Terminal(QtWidgets.QTextEdit):
                     self.cursor.movePosition(QtGui.QTextCursor.End, QtGui.QTextCursor.MoveAnchor)
                     self.moveCursor(QtGui.QTextCursor.End)
 
-                self.ui.serQueue.put('UI:::%s' %event.text())
+                self.ui.serQueue.put(f'UI:::{event.text()}')
 
             return True
 
         elif event.type() == QtCore.QEvent.InputMethod:
-            self.ui.serQueue.put('UI:::%s' %QtGui.QInputMethodEvent(event).commitString())
+            self.ui.serQueue.put(f'UI:::{QtGui.QInputMethodEvent(event).commitString()}')
 
             return True
 
@@ -369,7 +366,7 @@ class Terminal(QtWidgets.QTextEdit):
                 for char in QtWidgets.QApplication.clipboard().text():
                     if char == '\n':
                         char = '\r\n'
-                    self.ui.serQueue.put('UI:::%s' %char)
+                    self.ui.serQueue.put(f'UI:::{char}')
 
     def mouseMoveEvent(self, event):
         if event.button() == QtCore.Qt.NoButton:
@@ -421,6 +418,15 @@ class RenameDialog(QtWidgets.QDialog):
 
     def on_btnCancel_clicked(self):
         self.close()
+
+
+class NewFilDialog(RenameDialog):
+    def __init__(self, parent=None):
+        super(NewFilDialog, self).__init__(parent)
+
+        self.setWindowTitle('New File')
+
+        self.lblName.setText('file name:')
 
 
 class NewDirDialog(RenameDialog):
