@@ -273,12 +273,13 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
         self.cmdQueue.put(f'createDir:::{path}')
 
     def on_treeActionRename_triggered(self):
+        self.renameDialog.linName.setText(os.path.basename(self.tree.pressedFilePath))
         self.renameDialog.exec()
 
     def on_renameDialog_btnOK_clicked(self):
         newName = self.renameDialog.linName.text()
-        newPath = os.path.split(self.tree.pressedFilePath)[0] + '/' + newName
-        self.cmdQueue.put(f'renameFile:::{self.tree.pressedFilePath}:::{newPath}')
+        newPath = xpath.join(os.path.dirname(self.tree.pressedFilePath), newName)
+        self.cmdQueue.put(f'renameFile:::{self.tree.pressedFilePath}:::{newPath}:::{self.tree.pressedFileType}')
 
     def on_treeActionDelete_triggered(self):
         res = QtWidgets.QMessageBox.question(self, 'confirm delete?', self.tree.pressedFilePath, QtWidgets.QMessageBox.Ok|QtWidgets.QMessageBox.Cancel, QtWidgets.QMessageBox.Cancel)
@@ -326,29 +327,36 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
         if filePath not in self.tabWidget.openedFiles:
             self.tabWidget.newTab(filePath, fileData)
         
-        for i in range(self.tabWidget.count()):
-            if self.tabWidget.tabText(i) == filePath:
-                self.tabWidget.setCurrentIndex(i)
-                break
+        index = self.getFileIndex(filePath)
+        self.tabWidget.setCurrentIndex(index)
+        
+    def on_fileRenamed(self, oldPath, newPath, fileType):
+        print(oldPath, newPath, fileType)
+        if fileType == 'file':
+            if oldPath in self.tabWidget.openedFiles:
+                self.tabWidget.setTabText(self.getFileIndex(oldPath), newPath)
+                self.tabWidget.openedFiles[self.tabWidget.openedFiles.index(oldPath)] = newPath
 
-    def on_fileRenamed(self, oldPath, newPath):
-        if oldPath in self.tabWidget.openedFiles:
-            for i in range(self.tabWidget.count()):
-                if self.tabWidget.tabText(i) == oldPath:
-                    self.tabWidget.setTabText(i, newPath)
-                    break
+        elif fileType == 'dir':
+            for filePath in self.tabWidget.openedFiles:
+                if filePath.startswith(oldPath):
+                    self.tabWidget.setTabText(self.getFileIndex(filePath), xpath.join(newPath, os.path.basename(filePath)))
+                    self.tabWidget.openedFiles[self.tabWidget.openedFiles.index(filePath)] = xpath.join(newPath, os.path.basename(filePath))
 
         self.cmdQueue.put(f'listFile:::{self.dirFlash}')
 
     def on_fileDeleted(self, filePath):
         if filePath in self.tabWidget.openedFiles:
-            for i in range(self.tabWidget.count()):
-                if self.tabWidget.tabText(i) == filePath:
-                    self.tabWidget.removeTab(i)
-                    self.tabWidget.openedFiles.remove(filePath)
-                    break
+            index = self.getFileIndex(filePath)
+            self.tabWidget.removeTab(index)
+            self.tabWidget.openedFiles.remove(filePath)
         
         self.cmdQueue.put(f'listFile:::{self.dirFlash}')
+
+    def getFileIndex(self, filePath):
+        for i in range(self.tabWidget.count()):
+            if self.tabWidget.tabText(i) == filePath:
+                return i
 
     def closeEvent(self,event):
         self.conf.set('serial', 'port', self.cmbSer.currentText())

@@ -52,19 +52,22 @@ class TreeView(QtWidgets.QTreeView):
         self.popupMenu.exec_(self.mapToGlobal(point))
 
     def on_item_pressed(self, index):
-        self.pressedFileType = index.data(QtCore.Qt.WhatsThisRole)
-        self.pressedFilePath = ''
+        self.pressedFilePath, self.pressedFileType = self.getPathAndType(index)
+
+    def getPathAndType(self, index):
+        fileType = index.data(QtCore.Qt.WhatsThisRole)
+
+        filePath = ''
         while index.data():
-            self.pressedFilePath = index.data() + '/' + self.pressedFilePath
+            filePath = index.data() + '/' + filePath
             index = index.parent()
-        self.pressedFilePath = self.pressedFilePath[:-1]
+        filePath = filePath[:-1]
 
         if self.ui.dirFlash == '/':
-            if self.pressedFilePath == '/flash':
-                self.pressedFilePath = '/'
-            else:
-                self.pressedFilePath = self.pressedFilePath[len('/flash'):]
+            filePath = filePath[len('/flash'):] or '/'  # '/flash' will become ''
 
+        return filePath, fileType
+    
     def dragEnterEvent(self, event):
         if event.mimeData().hasFormat("text/uri-list"):
             self.dragFrom = "External"
@@ -74,12 +77,13 @@ class TreeView(QtWidgets.QTreeView):
         elif event.mimeData().hasFormat("application/x-qabstractitemmodeldatalist"):
             self.dragFrom = "Internal"
 
-            self.dragIndex = self.indexAt(event.pos())
-            if not self.dragIndex.data():
+            index = self.indexAt(event.pos())
+            if not index.data():
                 return
+
+            self.dragPath, self.dragType = self.getPathAndType(index)
             
             event.acceptProposedAction()
-
 
     def dragMoveEvent(self, event): # for drag work
         index = self.indexAt(event.pos())
@@ -97,9 +101,14 @@ class TreeView(QtWidgets.QTreeView):
         if not index.data() or index.data(QtCore.Qt.WhatsThisRole) != 'dir':
             return
 
-        dropDir = index.data()
+        dropDir, _ = self.getPathAndType(index)
 
-        if self.dragFrom == "External":
+        if self.dragFrom == "Internal":
+            newPath = xpath.join(dropDir, os.path.basename(self.dragPath))
+
+            self.ui.cmdQueue.put(f'renameFile:::{self.dragPath}:::{newPath}:::{self.dragType}')
+
+        elif self.dragFrom == "External":
             for url in event.mimeData().urls():
                 filePath = url.toLocalFile()
 
@@ -108,13 +117,6 @@ class TreeView(QtWidgets.QTreeView):
 
                 elif os.path.isdir(filePath):
                     pass
-            
-        elif self.dragFrom=="Internal":
-            if self.dragIndex.data(QtCore.Qt.WhatsThisRole) == 'file':
-                pass
-
-            elif self.dragIndex.data(QtCore.Qt.WhatsThisRole) == 'dir':
-                pass
 
 
 class TabWidget(QtWidgets.QTabWidget):
