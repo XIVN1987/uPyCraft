@@ -132,7 +132,6 @@ class CmdThread(QtCore.QThread):
 
             elif msg[0] == 'downFile':
                 self.downFile(msg[1], msg[2])
-                self.ui.inDownloading = False
 
             elif msg[0] == 'execFile':
                 self.execFile(msg[1])
@@ -247,10 +246,10 @@ class CmdThread(QtCore.QThread):
 
         self.ui.terminal.append(f'{filePath} download successful\n\n>>> ')
 
-        if self.ui.isDownloadAndRun:
-            self.ui.cmdQueue.put(f'execFile:::{self.ui.isDownloadAndRun}')
+        if self.ui.DownloadAndRunFile:
+            self.ui.cmdQueue.put(f'execFile:::{self.ui.DownloadAndRunFile}')
 
-            self.ui.isDownloadAndRun = False
+            self.ui.DownloadAndRunFile = None
 
     def execFile(self, filePath):
         self.ui.serQueue.put(f'exec_:::exec(open({filePath!r}).read(), globals())\r\n')

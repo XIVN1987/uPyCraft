@@ -53,8 +53,7 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
         self.initSetting()
 
         ''' Threads '''
-        self.inDownloading = False
-        self.isDownloadAndRun = False
+        self.DownloadAndRunFile = None
 
         self.serQueue = queue.Queue()
         self.cmdQueue = queue.Queue()
@@ -193,16 +192,8 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
             self.terminal.append('no file opened')
             return False
 
-        if self.inDownloading:
-            self.terminal.append('already in downloading')
-            return False
-
-        self.serQueue.put('UI:::\x03')
-
         filePath = self.tabWidget.tabText(self.tabWidget.currentIndex())
         if filePath.endswith('*'):
-            self.inDownloading = True
-
             fileData = self.tabWidget.currentWidget().text()
             self.cmdQueue.put(f'downFile:::{filePath[:-1]}:::{fileData}')
 
@@ -216,7 +207,7 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
 
         if filePath:
             if filePath.endswith('*'):
-                self.isDownloadAndRun = filePath[:-1]
+                self.DownloadAndRunFile = filePath[:-1]
             else:
                 self.cmdQueue.put(f'execFile:::{filePath}')
 
@@ -228,7 +219,6 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
 
         self.terminal.keyPressMsg='else'
         self.serQueue.put('UI:::\x03')
-        self.inDownloading = False
 
     @QtCore.pyqtSlot()
     def on_actionClearTerminal_triggered(self):
@@ -237,7 +227,12 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
     @QtCore.pyqtSlot(QtCore.QModelIndex)
     def on_tree_doubleClicked(self, index):
         if self.tree.pressedFileType == 'file':
-            self.cmdQueue.put(f'loadFile:::{self.tree.pressedFilePath}')
+            if self.tree.pressedFilePath not in self.tabWidget.openedFiles:
+                self.cmdQueue.put(f'loadFile:::{self.tree.pressedFilePath}')
+
+            else:               # already loaded
+                index = self.getFileIndex(self.tree.pressedFilePath)
+                self.tabWidget.setCurrentIndex(index)
     
     def on_treeActionRun_triggered(self):
         if not self.ser.is_open:
@@ -324,22 +319,22 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
         return sorted(dirs, key=lambda dict: dict.keys()) + sorted(files)
 
     def on_fileLoaded(self, filePath, fileData):
-        if filePath not in self.tabWidget.openedFiles:
-            self.tabWidget.newTab(filePath, fileData)
-        
+        self.tabWidget.newTab(filePath, fileData)
+
         index = self.getFileIndex(filePath)
         self.tabWidget.setCurrentIndex(index)
         
     def on_fileRenamed(self, oldPath, newPath, fileType):
-        print(oldPath, newPath, fileType)
         if fileType == 'file':
             if oldPath in self.tabWidget.openedFiles:
+                # TODO: oldPath with *
                 self.tabWidget.setTabText(self.getFileIndex(oldPath), newPath)
                 self.tabWidget.openedFiles[self.tabWidget.openedFiles.index(oldPath)] = newPath
 
         elif fileType == 'dir':
             for filePath in self.tabWidget.openedFiles:
                 if filePath.startswith(oldPath):
+                    # TODO: oldPath with *
                     self.tabWidget.setTabText(self.getFileIndex(filePath), xpath.join(newPath, os.path.basename(filePath)))
                     self.tabWidget.openedFiles[self.tabWidget.openedFiles.index(filePath)] = xpath.join(newPath, os.path.basename(filePath))
 
@@ -355,7 +350,7 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
 
     def getFileIndex(self, filePath):
         for i in range(self.tabWidget.count()):
-            if self.tabWidget.tabText(i) == filePath:
+            if self.tabWidget.tabText(i) in (filePath, filePath+'*'):
                 return i
 
     def closeEvent(self,event):

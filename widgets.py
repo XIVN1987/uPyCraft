@@ -105,17 +105,25 @@ class TreeView(QtWidgets.QTreeView):
 
         if self.dragFrom == "Internal":
             newPath = xpath.join(dropDir, os.path.basename(self.dragPath))
-
+            # TODO: file already exist
             self.ui.cmdQueue.put(f'renameFile:::{self.dragPath}:::{newPath}:::{self.dragType}')
 
         elif self.dragFrom == "External":
             for url in event.mimeData().urls():
-                filePath = url.toLocalFile()
+                pcFile = url.toLocalFile()
 
-                if os.path.isfile(filePath):
-                    pass
+                if os.path.isfile(pcFile):
+                    fileData = open(pcFile, 'rb').read().decode('latin-1')
+                    filePath = xpath.join(dropDir, os.path.basename(pcFile))
+                    # TODO: file already exist
+                    self.ui.cmdQueue.put(f'downFile:::{filePath}:::{fileData}')
 
-                elif os.path.isdir(filePath):
+                    self.ui.cmdQueue.put(f'listFile:::{self.ui.dirFlash}')
+
+                    if filePath in self.ui.tabWidget.openedFiles:
+                        self.ui.cmdQueue.put(f'loadFile:::{filePath}')
+
+                elif os.path.isdir(pcFile):
                     pass
 
 
