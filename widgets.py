@@ -13,6 +13,7 @@ class TreeView(QtWidgets.QTreeView):
         self.createContextMenu()
         self.customContextMenuRequested.connect(self.on_ContextMenuRequested)
 
+        self.pressedIndex = None
         self.pressedFilePath = ''
         self.pressedFileType = ''
         self.pressed.connect(self.on_item_pressed)
@@ -52,6 +53,7 @@ class TreeView(QtWidgets.QTreeView):
         self.popupMenu.exec_(self.mapToGlobal(point))
 
     def on_item_pressed(self, index):
+        self.pressedIndex = index
         self.pressedFilePath, self.pressedFileType = self.getPathAndType(index)
 
     def getPathAndType(self, index):
@@ -67,7 +69,33 @@ class TreeView(QtWidgets.QTreeView):
             filePath = filePath[len('/flash'):] or '/'  # '/flash' will become ''
 
         return filePath, fileType
-    
+
+    def isFileExist(self, path, type):  # type: 'dir', 'file'
+        if self.ui.dirFlash == '/':
+            path = path[len('/'):]
+        elif self.ui.dirFlash == '/flash':
+            path = path[len('/flash/'):]
+        
+        *nameM, nameL = path.split('/') # Middle names, Last name
+        
+        root = self.ui.treeFlash
+        for name in nameM:
+            for i in range(root.rowCount()):
+                item = root.child(i)
+                if item.data(QtCore.Qt.DisplayRole) == name and item.data(QtCore.Qt.WhatsThisRole) == 'dir':
+                    root = item
+                    break
+
+            else:   # dir 'name' not found
+                return False
+
+        for i in range(root.rowCount()):
+            item = root.child(i)
+            if item.data(QtCore.Qt.DisplayRole) == nameL and item.data(QtCore.Qt.WhatsThisRole) == type:
+                return True
+
+        return False
+
     def dragEnterEvent(self, event):
         if event.mimeData().hasFormat("text/uri-list"):
             self.dragFrom = "External"
@@ -77,12 +105,6 @@ class TreeView(QtWidgets.QTreeView):
         elif event.mimeData().hasFormat("application/x-qabstractitemmodeldatalist"):
             self.dragFrom = "Internal"
 
-            index = self.indexAt(event.pos())
-            if not index.data():
-                return
-
-            self.dragPath, self.dragType = self.getPathAndType(index)
-            
             event.acceptProposedAction()
 
     def dragMoveEvent(self, event): # for drag work
@@ -104,27 +126,46 @@ class TreeView(QtWidgets.QTreeView):
         dropDir, _ = self.getPathAndType(index)
 
         if self.dragFrom == "Internal":
-            newPath = xpath.join(dropDir, os.path.basename(self.dragPath))
-            # TODO: file already exist
-            self.ui.cmdQueue.put(f'renameFile:::{self.dragPath}:::{newPath}:::{self.dragType}')
+            newPath = xpath.join(dropDir, os.path.basename(self.pressedFilePath))
+            if self.isFileExist(newPath, self.pressedFileType):
+                self.ui.terminal.append(f'file {newPath} already exists\n\n>>> ')
+                return
+
+            self.ui.cmdQueue.put(f'renameFile:::{self.pressedFilePath}:::{newPath}:::{self.pressedFileType}')
 
         elif self.dragFrom == "External":
             for url in event.mimeData().urls():
                 pcFile = url.toLocalFile()
 
                 if os.path.isfile(pcFile):
-                    fileData = open(pcFile, 'rb').read().decode('latin-1')
                     filePath = xpath.join(dropDir, os.path.basename(pcFile))
-                    # TODO: file already exist
-                    self.ui.cmdQueue.put(f'downFile:::{filePath}:::{fileData}')
+                    if self.isFileExist(filePath, 'file'):
+                        self.ui.terminal.append(f'file {filePath} already exists\n\n>>> ')
+                        return
 
-                    self.ui.cmdQueue.put(f'listFile:::{self.ui.dirFlash}')
-
-                    if filePath in self.ui.tabWidget.openedFiles:
-                        self.ui.cmdQueue.put(f'loadFile:::{filePath}')
+                    fileData = open(pcFile, 'rb').read().decode('latin-1')
+                    self.ui.cmdQueue.put(f'downFile:::{filePath}:::{fileData}:::False')
 
                 elif os.path.isdir(pcFile):
-                    pass
+                    dirPath = xpath.join(dropDir, os.path.basename(pcFile))
+                    if self.isFileExist(dirPath, 'dir'):
+                        self.ui.terminal.append(f'directory {dirPath} already exists\n\n>>> ')
+                        return
+
+                    self.ui.cmdQueue.put(f'createDir:::{dirPath}:::False')
+
+                    for root, dirs, files in os.walk(pcFile):
+                        middle = root[len(os.path.dirname(pcFile)) + 1:].replace('\\', '/')
+                        for dir in dirs:
+                            dirPath = xpath.join(dropDir, middle, dir)
+                            self.ui.cmdQueue.put(f'createDir:::{dirPath}:::False')
+
+                        for file in files:
+                            filePath = xpath.join(dropDir, middle, file)
+                            fileData = open(os.path.join(root, file), 'rb').read().decode('latin-1')
+                            self.ui.cmdQueue.put(f'downFile:::{filePath}:::{fileData}:::False')
+
+            self.ui.cmdQueue.put(f'listFile:::{self.ui.dirFlash}')
 
 
 class TabWidget(QtWidgets.QTabWidget):

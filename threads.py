@@ -131,13 +131,13 @@ class CmdThread(QtCore.QThread):
                 self.loadFile(msg[1])
 
             elif msg[0] == 'downFile':
-                self.downFile(msg[1], msg[2])
+                self.downFile(msg[1], msg[2], msg[3] == 'True')
 
             elif msg[0] == 'execFile':
                 self.execFile(msg[1])
 
             elif msg[0] == 'createDir':
-                self.createDir(msg[1])
+                self.createDir(msg[1], msg[2] == 'True')
 
             elif msg[0] == 'createFile':
                 self.createFile(msg[1])
@@ -155,9 +155,7 @@ class CmdThread(QtCore.QThread):
 
     def importOS(self):
         self.ui.serQueue.put('Cmd:::import os\r\n')
-        err = self.waitComplete()
-        if err:
-            return
+        self.waitComplete()
     
     def waitComplete(self):
         ''' 每个self.ui.serQueue.put()调用后都要调用self.waitComplete()读走板子打印的'>>>'，
@@ -171,29 +169,33 @@ class CmdThread(QtCore.QThread):
         else:
             return 'Timeout'
         
-        if self.serRecv.find('Traceback') >= 0:
-            return self.serRecv
-
-        elif self.serRecv.find('... ') >= 0:
+        if self.serRecv.find('... ') >= 0:
             self.ui.serQueue.put('UI:::\x03')
             return 'IOError'
+
+        if self.serRecv.find('Traceback') >= 0:
+            return self.serRecv
         
         return None
+
+    def info(self, msg):
+        self.ui.terminal.append(f'{msg}\n\n>>> ')
 
     def listFile(self, path):
         data = self.listFileSub(path)
 
-        if path == '/flash' and not isinstance(data, dict):
+        if not isinstance(data, dict) and path == '/flash':
             self.ui.dirFlash = '/'
             self.ui.treeFlash.setToolTip(self.ui.dirFlash)
 
             data = self.listFileSub(self.ui.dirFlash)
 
-        if isinstance(data, dict):
-            self.sig_fileListed.emit(data)
-        else:
-            self.ui.terminal.append('refresh tree error.')
+        if not isinstance(data, dict):
+            self.info(f'list {path} fail')
+            return
 
+        self.sig_fileListed.emit(data)
+    
     def listFileSub(self, path):
         self.ui.serQueue.put(f'Cmd:::os.listdir({path!r})\r\n')
         err = self.waitComplete()
@@ -220,16 +222,18 @@ class CmdThread(QtCore.QThread):
         self.ui.serQueue.put(f'Cmd:::print(open({filePath!r}, "r").read())\r\n')
         err = self.waitComplete()
         if err:
+            self.info(f'load {filePath} fail')
             return
         
         fileData = '\n'.join(self.serRecv.split('\r\n')[1:-1])  # upy发送出的数据回车都是‘\r\n’
 
         self.sig_fileLoaded.emit(filePath, fileData)
 
-    def downFile(self, filePath, fileData):
+    def downFile(self, filePath, fileData, execFile):
         self.ui.serQueue.put(f'Cmd:::tempfile=open({filePath!r}, "w")\r\n')
         err = self.waitComplete()
         if err:
+            self.info(f'down {filePath} fail')
             return
 
         for i in range(0, len(fileData), 128):
@@ -237,38 +241,39 @@ class CmdThread(QtCore.QThread):
             self.ui.serQueue.put(f'Cmd:::tempfile.write({fileData[i:i+128]!r})\r\n')
             err = self.waitComplete()
             if err:
+                self.info(f'down {filePath} fail')
                 return
 
         self.ui.serQueue.put('Cmd:::tempfile.close()\r\n')
         err = self.waitComplete()
         if err:
+            self.info(f'down {filePath} fail')
             return
 
-        self.ui.terminal.append(f'{filePath} download successful\n\n>>> ')
+        self.info(f'down {filePath} success')
 
-        if self.ui.DownloadAndRunFile:
-            self.ui.cmdQueue.put(f'execFile:::{self.ui.DownloadAndRunFile}')
-
-            self.ui.DownloadAndRunFile = None
+        if execFile:
+            self.ui.cmdQueue.put(f'execFile:::{filePath}')
 
     def execFile(self, filePath):
         self.ui.serQueue.put(f'exec_:::exec(open({filePath!r}).read(), globals())\r\n')
-        err = self.waitComplete()
-        if err:
-            return
+        self.waitComplete()   # no check, may exec for long time
 
-    def createDir(self, path):
+    def createDir(self, path, refresh):
         self.ui.serQueue.put(f'Cmd:::os.mkdir({path!r})\r\n')
         err = self.waitComplete()
         if err:
+            self.info(f'create {path} fail')
             return
 
-        self.ui.cmdQueue.put(f'listFile:::{self.ui.dirFlash}')
+        if refresh:
+            self.ui.cmdQueue.put(f'listFile:::{self.ui.dirFlash}')
 
     def createFile(self, path):
         self.ui.serQueue.put(f'Cmd:::open({path!r}, "w")\r\n')
         err = self.waitComplete()
         if err:
+            self.info(f'create {path} fail')
             return
 
         self.ui.cmdQueue.put(f'listFile:::{self.ui.dirFlash}')
@@ -277,6 +282,7 @@ class CmdThread(QtCore.QThread):
         self.ui.serQueue.put(f'Cmd:::os.rename({oldPath!r}, {newPath!r})\r\n')
         err = self.waitComplete()
         if err:
+            self.info(f'rename {oldPath} fial')
             return
 
         self.sig_fileRenamed.emit(oldPath, newPath, fileType)
@@ -285,6 +291,7 @@ class CmdThread(QtCore.QThread):
         self.ui.serQueue.put(f'Cmd:::os.stat({path!r})\r\n')
         err = self.waitComplete()
         if err:
+            self.info(f'delete {path} fail')
             return
 
         match = re.search(r'\((\d+), ', self.serRecv)
@@ -295,8 +302,9 @@ class CmdThread(QtCore.QThread):
 
         err = self.waitComplete()
         if err:
+            self.info(f'delete {path} fail')
             return
-       
+            
         self.sig_fileDeleted.emit(path)
     
     def on_msgToCmdReceived(self, data):

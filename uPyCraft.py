@@ -53,8 +53,6 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
         self.initSetting()
 
         ''' Threads '''
-        self.DownloadAndRunFile = None
-
         self.serQueue = queue.Queue()
         self.cmdQueue = queue.Queue()
 
@@ -183,7 +181,7 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
         self.cmdQueue.put(f'listFile:::{self.dirFlash}')
 
     @QtCore.pyqtSlot()
-    def on_actionDownload_triggered(self):
+    def on_actionDownload_triggered(self, execFile=False):
         if not self.ser.is_open:
             self.terminal.append('serial not opened')
             return False
@@ -194,22 +192,18 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
 
         filePath = self.tabWidget.tabText(self.tabWidget.currentIndex())
         if filePath.endswith('*'):
+            filePath = filePath[:-1]
             fileData = self.tabWidget.currentWidget().text()
-            self.cmdQueue.put(f'downFile:::{filePath[:-1]}:::{fileData}')
+            self.cmdQueue.put(f'downFile:::{filePath}:::{fileData}:::{execFile}')
 
-            self.tabWidget.setTabText(self.tabWidget.currentIndex(), filePath[:-1])
+            self.tabWidget.setTabText(self.tabWidget.currentIndex(), filePath)
 
-        return filePath
+        elif execFile:
+            self.cmdQueue.put(f'execFile:::{filePath}')
 
     @QtCore.pyqtSlot()
     def on_actionDownloadAndRun_triggered(self):
-        filePath = self.on_actionDownload_triggered()
-
-        if filePath:
-            if filePath.endswith('*'):
-                self.DownloadAndRunFile = filePath[:-1]
-            else:
-                self.cmdQueue.put(f'execFile:::{filePath}')
+        self.on_actionDownload_triggered(execFile=True)
 
     @QtCore.pyqtSlot()
     def on_actionStopExcute_triggered(self):
@@ -231,7 +225,7 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
                 self.cmdQueue.put(f'loadFile:::{self.tree.pressedFilePath}')
 
             else:               # already loaded
-                index = self.getFileIndex(self.tree.pressedFilePath)
+                index, _ = self.getFileIndex(self.tree.pressedFilePath)
                 self.tabWidget.setCurrentIndex(index)
     
     def on_treeActionRun_triggered(self):
@@ -252,6 +246,10 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
         name = self.newfilDialog.linName.text()
         path = xpath.join(self.tree.pressedFilePath, name)
 
+        if self.tree.isFileExist(path, 'file'):
+            self.terminal.append(f'file {path} already exists\n\n>>> ')
+            return
+
         self.cmdQueue.put(f'createFile:::{path}')
 
     def on_treeActionNewdir_triggered(self):
@@ -265,7 +263,11 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
         name = self.newdirDialog.linName.text()
         path = xpath.join(self.tree.pressedFilePath, name)
 
-        self.cmdQueue.put(f'createDir:::{path}')
+        if self.tree.isFileExist(path, 'dir'):
+            self.terminal.append(f'directory {path} already exists\n\n>>> ')
+            return
+
+        self.cmdQueue.put(f'createDir:::{path}:::True')
 
     def on_treeActionRename_triggered(self):
         self.renameDialog.linName.setText(os.path.basename(self.tree.pressedFilePath))
@@ -274,6 +276,11 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
     def on_renameDialog_btnOK_clicked(self):
         newName = self.renameDialog.linName.text()
         newPath = xpath.join(os.path.dirname(self.tree.pressedFilePath), newName)
+
+        if self.tree.isFileExist(newPath, self.tree.pressedFileType):
+            self.terminal.append(f'{newPath} already exists\n\n>>> ')
+            return
+
         self.cmdQueue.put(f'renameFile:::{self.tree.pressedFilePath}:::{newPath}:::{self.tree.pressedFileType}')
 
     def on_treeActionDelete_triggered(self):
@@ -281,7 +288,21 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
         if res == QtWidgets.QMessageBox.Cancel:
             return
 
+        item = self.tree.model().itemFromIndex(self.tree.pressedIndex)
+        if item.data(QtCore.Qt.WhatsThisRole) == 'dir':
+            self.deleteDirContent(item)
+
         self.cmdQueue.put(f'deleteFile:::{self.tree.pressedFilePath}')
+
+        self.cmdQueue.put(f'listFile:::{self.dirFlash}')
+
+    def deleteDirContent(self, root):
+        for i in range(root.rowCount()):
+            item = root.child(i)
+            if item.hasChildren():
+                self.deleteDirContent(item)
+
+            self.cmdQueue.put(f'deleteFile:::{self.tree.getPathAndType(item.index())[0]}')
 
     def on_fileListed(self, data):
         row = self.treeFlash.rowCount()
@@ -321,37 +342,41 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
     def on_fileLoaded(self, filePath, fileData):
         self.tabWidget.newTab(filePath, fileData)
 
-        index = self.getFileIndex(filePath)
+        index, _ = self.getFileIndex(filePath)
         self.tabWidget.setCurrentIndex(index)
         
     def on_fileRenamed(self, oldPath, newPath, fileType):
         if fileType == 'file':
             if oldPath in self.tabWidget.openedFiles:
-                # TODO: oldPath with *
-                self.tabWidget.setTabText(self.getFileIndex(oldPath), newPath)
+                index, changed = self.getFileIndex(oldPath)
+                self.tabWidget.setTabText(index, newPath + ('*' if changed else ''))
+
                 self.tabWidget.openedFiles[self.tabWidget.openedFiles.index(oldPath)] = newPath
 
         elif fileType == 'dir':
             for filePath in self.tabWidget.openedFiles:
                 if filePath.startswith(oldPath):
-                    # TODO: oldPath with *
-                    self.tabWidget.setTabText(self.getFileIndex(filePath), xpath.join(newPath, os.path.basename(filePath)))
-                    self.tabWidget.openedFiles[self.tabWidget.openedFiles.index(filePath)] = xpath.join(newPath, os.path.basename(filePath))
+                    index, changed = self.getFileIndex(filePath)
+                    newFilePath = xpath.join(newPath, filePath[len(oldPath)+1:])
+                    self.tabWidget.setTabText(index, newFilePath + ('*' if changed else ''))
+
+                    self.tabWidget.openedFiles[self.tabWidget.openedFiles.index(filePath)] = newFilePath                    
 
         self.cmdQueue.put(f'listFile:::{self.dirFlash}')
 
     def on_fileDeleted(self, filePath):
         if filePath in self.tabWidget.openedFiles:
-            index = self.getFileIndex(filePath)
+            index, _ = self.getFileIndex(filePath)
             self.tabWidget.removeTab(index)
             self.tabWidget.openedFiles.remove(filePath)
-        
-        self.cmdQueue.put(f'listFile:::{self.dirFlash}')
 
     def getFileIndex(self, filePath):
         for i in range(self.tabWidget.count()):
-            if self.tabWidget.tabText(i) in (filePath, filePath+'*'):
-                return i
+            if self.tabWidget.tabText(i) == filePath:
+                return i, False
+
+            if self.tabWidget.tabText(i) == filePath+'*':
+                return i, True  # file content changed
 
     def closeEvent(self,event):
         self.conf.set('serial', 'port', self.cmbSer.currentText())
