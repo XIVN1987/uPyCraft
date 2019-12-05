@@ -49,6 +49,7 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
         self.tree.actionNewdir.triggered.connect(self.on_treeActionNewdir_triggered)
         self.tree.actionRename.triggered.connect(self.on_treeActionRename_triggered)
         self.tree.actionDelete.triggered.connect(self.on_treeActionDelete_triggered)
+        self.tree.actionSavePC.triggered.connect(self.on_treeActionSavePC_triggered)
         
         self.initSetting()
 
@@ -102,6 +103,10 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
         self.resize(*eval(self.conf.get('window', 'window')))
         self.hSplitter.setSizes(eval(self.conf.get('window', 'hSplitter')))
         self.vSplitter.setSizes(eval(self.conf.get('window', 'vSplitter')))
+
+        if not self.conf.has_section('others'):
+            self.conf.add_section('others')
+            self.conf.set('others', 'PCFolder', '')
 
     @QtCore.pyqtSlot()
     def on_actionConnect_triggered(self):
@@ -222,7 +227,7 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
     def on_tree_doubleClicked(self, index):
         if self.tree.pressedFileType == 'file':
             if self.tree.pressedFilePath not in self.tabWidget.openedFiles:
-                self.cmdQueue.put(f'loadFile:::{self.tree.pressedFilePath}')
+                self.cmdQueue.put(f'loadFile:::{self.tree.pressedFilePath}:::TabPage')
 
             else:               # already loaded
                 index, _ = self.getFileIndex(self.tree.pressedFilePath)
@@ -299,10 +304,46 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
     def deleteDirContent(self, root):
         for i in range(root.rowCount()):
             item = root.child(i)
-            if item.hasChildren():
+            if item.data(QtCore.Qt.WhatsThisRole) == 'dir':
                 self.deleteDirContent(item)
 
             self.cmdQueue.put(f'deleteFile:::{self.tree.getPathAndType(item.index())[0]}')
+
+    def on_treeActionSavePC_triggered(self):
+        dirPath = QtWidgets.QFileDialog.getExistingDirectory(self, 'The folder to save to', self.conf.get('others', 'PCFolder'))
+        if not dirPath:
+            return
+
+        self.conf.set('others', 'PCFolder', dirPath)
+
+        item = self.tree.model().itemFromIndex(self.tree.pressedIndex)
+        name = item.data(QtCore.Qt.DisplayRole)
+        newPath = os.path.join(dirPath, 'flash' if name == self.dirFlash else name)
+        if item.data(QtCore.Qt.WhatsThisRole) == 'dir':
+            if os.path.exists(newPath) and os.path.isdir(newPath):
+                self.terminal.append(f'{newPath} already exists\n\n>>> ')
+                return
+
+            os.mkdir(newPath)
+            self.saveDirContent(newPath, item)
+
+        else:
+            if os.path.exists(newPath) and os.path.isfile(newPath):
+                self.terminal.append(f'{newPath} already exists\n\n>>> ')
+                return
+
+            self.cmdQueue.put(f'loadFile:::{self.tree.getPathAndType(item.index())[0]}:::{newPath}')
+
+    def saveDirContent(self, dirPath, root):
+        for i in range(root.rowCount()):
+            item = root.child(i)
+            newPath = os.path.join(dirPath, item.data(QtCore.Qt.DisplayRole))
+            if item.data(QtCore.Qt.WhatsThisRole) == 'dir':
+                os.mkdir(newPath)
+                self.saveDirContent(newPath, item)
+
+            else:
+                self.cmdQueue.put(f'loadFile:::{self.tree.getPathAndType(item.index())[0]}:::{newPath}')
 
     def on_fileListed(self, data):
         row = self.treeFlash.rowCount()
@@ -339,11 +380,16 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
 
         return sorted(dirs, key=lambda dict: dict.keys()) + sorted(files)
 
-    def on_fileLoaded(self, filePath, fileData):
-        self.tabWidget.newTab(filePath, fileData)
+    def on_fileLoaded(self, filePath, fileData, target):
+        if target == 'TabPage':
+            self.tabWidget.newTab(filePath, fileData)
 
-        index, _ = self.getFileIndex(filePath)
-        self.tabWidget.setCurrentIndex(index)
+            index, _ = self.getFileIndex(filePath)
+            self.tabWidget.setCurrentIndex(index)
+
+        else:
+            with open(target, 'wb') as f:
+                f.write(fileData.encode('latin-1'))
         
     def on_fileRenamed(self, oldPath, newPath, fileType):
         if fileType == 'file':

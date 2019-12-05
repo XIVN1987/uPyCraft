@@ -9,6 +9,8 @@ to run this software, you need python 3.6, pyqt5 and pyserial.
 + delete
 + rename
 + drag
++ drag from PC
++ save to PC
 
 ### file opertion
 + upload

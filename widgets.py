@@ -32,6 +32,7 @@ class TreeView(QtWidgets.QTreeView):
         self.actionRename = QtWidgets.QAction('Rename',     self)
         self.actionNewfil = QtWidgets.QAction('New File',   self)
         self.actionNewdir = QtWidgets.QAction('New Folder', self)
+        self.actionSavePC = QtWidgets.QAction('Save to PC', self)
     
     def on_ContextMenuRequested(self, point):
         self.popupMenu.clear()
@@ -49,6 +50,8 @@ class TreeView(QtWidgets.QTreeView):
                 self.popupMenu.addAction(self.actionRun)
             self.popupMenu.addAction(self.actionRename)
             self.popupMenu.addAction(self.actionDelete)
+
+        self.popupMenu.addAction(self.actionSavePC)
 
         self.popupMenu.exec_(self.mapToGlobal(point))
 

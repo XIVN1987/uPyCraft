@@ -104,8 +104,8 @@ class SerThread(QtCore.QThread):
 class CmdThread(QtCore.QThread):
     ''' Operation below will affect UI, UI change can only be done in UI thread '''
     sig_fileListed  = QtCore.pyqtSignal(dict)
-    sig_fileLoaded  = QtCore.pyqtSignal(str, str)       # filePath, fileData
-    sig_fileRenamed = QtCore.pyqtSignal(str, str, str)  # oldPath,  newPath, fileType
+    sig_fileLoaded  = QtCore.pyqtSignal(str, str, str)  # filePath, fileData, target
+    sig_fileRenamed = QtCore.pyqtSignal(str, str, str)  # oldPath,  newPath,  fileType
     sig_fileDeleted = QtCore.pyqtSignal(str)
 
     def __init__(self, parent):
@@ -128,7 +128,7 @@ class CmdThread(QtCore.QThread):
                 self.listFile(msg[1])
 
             elif msg[0] == 'loadFile':
-                self.loadFile(msg[1])
+                self.loadFile(msg[1], msg[2])
 
             elif msg[0] == 'downFile':
                 self.downFile(msg[1], msg[2], msg[3] == 'True')
@@ -218,7 +218,7 @@ class CmdThread(QtCore.QThread):
 
         return data
 
-    def loadFile(self, filePath):
+    def loadFile(self, filePath, target):
         self.ui.serQueue.put(f'Cmd:::print(open({filePath!r}, "r").read())\r\n')
         err = self.waitComplete()
         if err:
@@ -227,7 +227,7 @@ class CmdThread(QtCore.QThread):
         
         fileData = '\n'.join(self.serRecv.split('\r\n')[1:-1])  # upy发送出的数据回车都是‘\r\n’
 
-        self.sig_fileLoaded.emit(filePath, fileData)
+        self.sig_fileLoaded.emit(filePath, fileData, target)
 
     def downFile(self, filePath, fileData, execFile):
         self.ui.serQueue.put(f'Cmd:::tempfile=open({filePath!r}, "w")\r\n')
