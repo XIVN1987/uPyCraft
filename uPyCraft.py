@@ -294,7 +294,7 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
             return
 
         item = self.tree.model().itemFromIndex(self.tree.pressedIndex)
-        if item.data(QtCore.Qt.WhatsThisRole) == 'dir':
+        if item.hasChildren():				# folder and not empty
             self.deleteDirContent(item)
 
         self.cmdQueue.put(f'deleteFile:::{self.tree.pressedFilePath}')
@@ -304,7 +304,7 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
     def deleteDirContent(self, root):
         for i in range(root.rowCount()):
             item = root.child(i)
-            if item.data(QtCore.Qt.WhatsThisRole) == 'dir':
+            if item.hasChildren():
                 self.deleteDirContent(item)
 
             self.cmdQueue.put(f'deleteFile:::{self.tree.getPathAndType(item.index())[0]}')
