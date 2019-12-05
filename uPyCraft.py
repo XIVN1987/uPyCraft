@@ -318,7 +318,7 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
 
         item = self.tree.model().itemFromIndex(self.tree.pressedIndex)
         name = item.data(QtCore.Qt.DisplayRole)
-        newPath = os.path.join(dirPath, 'flash' if name == self.dirFlash else name)
+        newPath = os.path.join(dirPath, 'flash' if name == '/flash' else name)
         if item.data(QtCore.Qt.WhatsThisRole) == 'dir':
             if os.path.exists(newPath) and os.path.isdir(newPath):
                 self.terminal.append(f'{newPath} already exists\n\n>>> ')
