@@ -295,9 +295,6 @@ class Terminal(QtWidgets.QTextEdit):
         
         self.keyPressMsg = ''
         self.recvbuff = ''
-    
-    def setEventFilterEnable(self, enable):
-        self.eventFilterEnable = enable
 
     def eventFilter(self, watch, event):
         if not self.eventFilterEnable:

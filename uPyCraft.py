@@ -140,7 +140,7 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
         self.cmbSer.setEnabled(False)
 
         self.terminal.setReadOnly(False)
-        self.terminal.setEventFilterEnable(True)
+        self.terminal.eventFilterEnable = True
 
         self.actionConnect.setVisible(False)
         self.actionDisconnect.setVisible(True)
@@ -166,7 +166,7 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
 
         self.terminal.clear()
         self.terminal.setReadOnly(True)
-        self.terminal.setEventFilterEnable(False)
+        self.terminal.eventFilterEnable = False
 
         row = self.treeFlash.rowCount()
         self.treeFlash.removeRows(0, row)
