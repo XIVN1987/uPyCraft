@@ -13,91 +13,38 @@ class SerThread(QtCore.QThread):
     def __init__(self, parent):
         super(SerThread, self).__init__(parent)
 
-        self.ui = parent
-
-        self.oper = ''
-        self.operargv = ''
-        self.lastoper = ''
+        self.ser      = parent.ser
+        self.serQueue = parent.serQueue
         
     def run(self):
-        execOutput = ''
-        while self.ui.ser.isOpen():
-            if not self.ui.serQueue.empty():
-                cmd = self.ui.serQueue.get()
+        while self.ser.isOpen():
+            if not self.serQueue.empty():
+                cmd = self.serQueue.get()
                 print(cmd)
 
-                cmd = cmd.split(':::')
-                self.oper = cmd[0]
-                if len(cmd) > 1:
-                    self.operargv = cmd[1] if type(cmd[1]) is bytes else cmd[1].encode('utf-8')
-                else:
-                    self.operargv = b''
-
-                if self.oper == 'close':
+                if cmd == 'close':
                     break
 
-                elif self.oper == 'UI':
-                    if self.operargv == b'\x03':
-                        self.lastoper = ''
-                    elif self.lastoper == 'exec_':
-                        self.sig_msgToTrmReceived.emit('board is running file, stop it first\r\n')
-                        continue
-
-                elif self.oper == 'Cmd':
-                    if self.lastoper == 'exec_':
-                        self.sig_msgToTrmReceived.emit('board is running file, stop it first\r\n')
-                        self.oper = 'UI'
-                        continue
-
-                elif self.oper == 'exec_':
-                    if self.lastoper == 'exec_':
-                        self.sig_msgToTrmReceived.emit('board is running file, stop it first\r\n')
-                        self.oper = 'UI'
-                        continue
-
-                    self.lastoper = 'exec_'
-
+                self.type, self.oper = cmd.split(':::')
                 try:
-                    self.ui.ser.write(self.operargv)
-                    self.ui.ser.flush()
+                    self.ser.write(self.oper.encode('utf-8'))
+                    self.ser.flush()
                 except Exception:
-                    self.lastoper = ''
-                    self.oper = ''
                     break
 
-            if self.oper in ['', 'UI', 'exec_']:
-                try:
-                    data = self.ui.ser.read(1)
-                except Exception as e:
-                    break
+            try:
+                data = self.ser.read(self.ser.in_waiting).decode(encoding='utf-8', errors='replace')
+            except Exception as e:
+                break
+            
+            if data == '':
+                continue
 
-                if data == b'':
-                    continue
-
-                data = data.decode(encoding='utf-8', errors='replace')
-                
-                if self.lastoper == 'exec_':
-                    execOutput += data
-                    if execOutput.find('>>> ') >= 0:    # exit from exec
-                        execOutput = ''
-                        self.lastoper = ''
-
+            if self.type == 'Cmd' and not self.oper.startswith('exec'):
+                self.sig_msgToCmdReceived.emit(data)
+            else:
                 self.sig_msgToTrmReceived.emit(data)
 
-            elif self.oper == 'Cmd':
-                try:
-                    data = self.ui.ser.read(10)
-                except Exception:
-                    break
-
-                if data == b'':
-                    continue
-
-                data = data.decode(encoding='utf-8', errors='replace')
-                if data:
-                    self.sig_msgToCmdReceived.emit(data)           
-
-        self.lastoper = ''
         self.exit()
 
 
@@ -170,7 +117,7 @@ class CmdThread(QtCore.QThread):
             return 'Timeout'
         
         if self.serRecv.find('... ') >= 0:
-            self.ui.serQueue.put('UI:::\x03')
+            self.ui.serQueue.put('Key:::\x03')
             return 'IOError'
 
         if self.serRecv.find('Traceback') >= 0:
@@ -256,7 +203,7 @@ class CmdThread(QtCore.QThread):
             self.ui.cmdQueue.put(f'execFile:::{filePath}')
 
     def execFile(self, filePath):
-        self.ui.serQueue.put(f'exec_:::exec(open({filePath!r}).read(), globals())\r\n')
+        self.ui.serQueue.put(f'Cmd:::exec(open({filePath!r}).read(), globals())\r\n')
         self.waitComplete()   # no check, may exec for long time
 
     def createDir(self, path, refresh):

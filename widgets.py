@@ -300,47 +300,44 @@ class Terminal(QtWidgets.QTextEdit):
         if not self.eventFilterEnable:
             return QtWidgets.QMainWindow.eventFilter(self, watch, event)
 
-        if event.type() == QtCore.QEvent.KeyPress:                
+        if event.type() == QtCore.QEvent.KeyPress:
+            self.keyPressMsg = ''
+
             if event.key() == QtCore.Qt.Key_Backspace:
                 self.keyPressMsg = '\x08'
-                self.ui.serQueue.put(f'UI:::{self.keyPressMsg}')
-
+                
             elif event.key() == QtCore.Qt.Key_Tab:
                 self.keyPressMsg = '\x09'
-                self.ui.serQueue.put(f'UI:::{self.keyPressMsg}')
 
             elif event.key() == QtCore.Qt.Key_Delete:
                 self.keyPressMsg = '\x1b\x5b\x33\x7e'
-                self.ui.serQueue.put(f'UI:::{self.keyPressMsg}')
 
             elif event.key() == QtCore.Qt.Key_Up:
                 self.keyPressMsg = '\x1b\x5b\x41'
-                self.ui.serQueue.put(f'UI:::{self.keyPressMsg}')
 
             elif event.key() == QtCore.Qt.Key_Down:
                 self.keyPressMsg = '\x1b\x5b\x42'
-                self.ui.serQueue.put(f'UI:::{self.keyPressMsg}')
 
             elif event.key() == QtCore.Qt.Key_Right:
                 self.keyPressMsg = '\x1b\x5b\x43'
-                self.ui.serQueue.put(f'UI:::{self.keyPressMsg}')
 
             elif event.key() == QtCore.Qt.Key_Left:
                 self.keyPressMsg = '\x1b\x5b\x44'
-                self.ui.serQueue.put(f'UI:::{self.keyPressMsg}')
-                
+            
+            if self.keyPressMsg:
+                self.ui.serQueue.put(f'Key:::{self.keyPressMsg}')
+
             else:
-                self.keyPressMsg = 'else'
                 if event.key() in [QtCore.Qt.Key_Return, QtCore.Qt.Key_Enter]:
                     self.cursor.movePosition(QtGui.QTextCursor.End, QtGui.QTextCursor.MoveAnchor)
-                    self.moveCursor(QtGui.QTextCursor.End)
+                    self.setTextCursor(self.cursor)
 
-                self.ui.serQueue.put(f'UI:::{event.text()}')
+                self.ui.serQueue.put(f'Key:::{event.text()}')
 
             return True
 
         elif event.type() == QtCore.QEvent.InputMethod:
-            self.ui.serQueue.put(f'UI:::{QtGui.QInputMethodEvent(event).commitString()}')
+            self.ui.serQueue.put(f'Key:::{QtGui.QInputMethodEvent(event).commitString()}')
 
             return True
 
@@ -393,12 +390,12 @@ class Terminal(QtWidgets.QTextEdit):
 
         elif self.keyPressMsg == '\x1b\x5b\x44':  # Key_Left
             if data == '\x08':
-                self.moveCursor(QtGui.QTextCursor.Left,QtGui.QTextCursor.MoveAnchor)
-                self.cursor = self.textCursor()
+                self.cursor.movePosition(QtGui.QTextCursor.Left, QtGui.QTextCursor.MoveAnchor)
+                self.setTextCursor(self.cursor)
 
         elif self.keyPressMsg == '\x1b\x5b\x43':  # Key_Right
-            self.moveCursor(QtGui.QTextCursor.Right, QtGui.QTextCursor.MoveAnchor)
-            self.cursor = self.textCursor()
+            self.cursor.movePosition(QtGui.QTextCursor.Right, QtGui.QTextCursor.MoveAnchor)
+            self.setTextCursor(self.cursor)
 
         elif self.keyPressMsg=='\x1b\x5b\x41':  # Key_Up
             if data == '\x08':
@@ -458,7 +455,7 @@ class Terminal(QtWidgets.QTextEdit):
         self.setPlainText(plainMsg)
 
         self.cursor.movePosition(QtGui.QTextCursor.End, QtGui.QTextCursor.MoveAnchor)
-        self.moveCursor(QtGui.QTextCursor.End)
+        self.setTextCursor(self.cursor)
 
     def mousePressEvent(self, event):
         if event.button() == QtCore.Qt.LeftButton:
@@ -471,7 +468,7 @@ class Terminal(QtWidgets.QTextEdit):
                 for char in QtWidgets.QApplication.clipboard().text():
                     if char == '\n':
                         char = '\r\n'
-                    self.ui.serQueue.put(f'UI:::{char}')
+                    self.ui.serQueue.put(f'Key:::{char}')
 
     def mouseMoveEvent(self, event):
         if event.button() == QtCore.Qt.NoButton:

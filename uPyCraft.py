@@ -124,7 +124,7 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
             time.sleep(0.01)
             recv += self.ser.read(self.ser.in_waiting)
             if b'>>> ' in recv:
-                self.terminal.setText('>>> ')
+                self.terminal.removeLastLine()
                 break
         else:
             self.terminal.append('connect board fail')
@@ -155,7 +155,7 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
 
             self.tabWidget.closeTab(index)
         
-        self.serQueue.put('UI:::\x03')
+        self.serQueue.put('Key:::\x03')
         self.serQueue.put('close')
         self.cmdQueue.put('close')
         while not self.cmdQueue.empty() or not self.serQueue.empty():
@@ -216,8 +216,8 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
             self.terminal.append('serial not opened')
             return
 
-        self.terminal.keyPressMsg='else'
-        self.serQueue.put('UI:::\x03')
+        self.terminal.keyPressMsg=''
+        self.serQueue.put('Key:::\x03')
 
     @QtCore.pyqtSlot()
     def on_actionClearTerminal_triggered(self):
