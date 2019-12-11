@@ -32,5 +32,7 @@ No context menu supported, only shortcut keys can be used.
 
 ### Terminal
 No context menu or shortcut keys supported, copy and paste is done as follows:
+
 Copy:  mouse left-click and drag select the content you want, and release the mouse to copy the selected content
+
 Paste: mouse right-click paste the clipboard content
