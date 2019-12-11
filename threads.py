@@ -7,8 +7,8 @@ from PyQt5 import QtCore, QtGui
 
 
 class SerThread(QtCore.QThread):
-    sig_msgToTrmReceived = QtCore.pyqtSignal(str)  # message to terminal
-    sig_msgToCmdReceived = QtCore.pyqtSignal(str)
+    keyRespAvailable = QtCore.pyqtSignal(str)
+    cmdRespAvailable = QtCore.pyqtSignal(str)
 
     def __init__(self, parent):
         super(SerThread, self).__init__(parent)
@@ -41,9 +41,9 @@ class SerThread(QtCore.QThread):
                 continue
 
             if self.type == 'Cmd' and not self.oper.startswith('exec'):
-                self.sig_msgToCmdReceived.emit(data)
+                self.cmdRespAvailable.emit(data)
             else:
-                self.sig_msgToTrmReceived.emit(data)
+                self.keyRespAvailable.emit(data)
 
         self.exit()
 
@@ -59,7 +59,6 @@ class CmdThread(QtCore.QThread):
         super(CmdThread, self).__init__(parent)
 
         self.ui = parent
-        self.ui.serThread.sig_msgToCmdReceived.connect(self.on_msgToCmdReceived)
 
         self.serRecv = ''       # data from serial
         self.serRecvBuf = ''
@@ -104,12 +103,12 @@ class CmdThread(QtCore.QThread):
         self.ui.serQueue.put('Cmd:::import os\r\n')
         self.waitComplete()
     
-    def waitComplete(self):
+    def waitComplete(self, second=2):
         ''' 每个self.ui.serQueue.put()调用后都要调用self.waitComplete()读走板子打印的'>>>'，
             防止后面的命令错误地将前面命令的响应当作板子对自己的响应
         '''
         self.serRecv = ''
-        for i in range(int(2/0.01)):
+        for i in range(int(second/0.01)):
             time.sleep(0.01)
             if self.serRecv:
                 break
@@ -124,9 +123,6 @@ class CmdThread(QtCore.QThread):
             return self.serRecv
         
         return None
-
-    def info(self, msg):
-        self.ui.terminal.append(f'{msg}\n\n>>> ')
 
     def listFile(self, path):
         data = self.listFileSub(path)
@@ -167,7 +163,7 @@ class CmdThread(QtCore.QThread):
 
     def loadFile(self, filePath, target):
         self.ui.serQueue.put(f'Cmd:::print(open({filePath!r}, "r").read())\r\n')
-        err = self.waitComplete()
+        err = self.waitComplete(second=5)
         if err:
             self.info(f'load {filePath} fail')
             return
@@ -204,7 +200,7 @@ class CmdThread(QtCore.QThread):
 
     def execFile(self, filePath):
         self.ui.serQueue.put(f'Cmd:::exec(open({filePath!r}).read(), globals())\r\n')
-        self.waitComplete()   # no check, may exec for long time
+        self.waitComplete(second=0.5)   # no check, may exec for long time
 
     def createDir(self, path, refresh):
         self.ui.serQueue.put(f'Cmd:::os.mkdir({path!r})\r\n')
@@ -254,8 +250,11 @@ class CmdThread(QtCore.QThread):
             
         self.sig_fileDeleted.emit(path)
     
-    def on_msgToCmdReceived(self, data):
+    def on_cmdRespAvailable(self, data):
         self.serRecvBuf += data
         if self.serRecvBuf.find('>>> ') >= 0 or self.serRecvBuf.find('... ') >= 0:
             self.serRecv = self.serRecvBuf
             self.serRecvBuf = ''
+
+    def info(self, msg):
+        self.ui.terminal.append(f'{msg}\n\n>>> ')

@@ -59,14 +59,15 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
 
         self.ser = serial.Serial(baudrate=115200, timeout=0.001)
 
-        self.serThread = SerThread(self)
-        self.serThread.sig_msgToTrmReceived.connect(self.terminal.on_msgToTrmReceived)
-
         self.cmdThread = CmdThread(self)
         self.cmdThread.sig_fileListed.connect(self.on_fileListed)
         self.cmdThread.sig_fileLoaded.connect(self.on_fileLoaded)
         self.cmdThread.sig_fileRenamed.connect(self.on_fileRenamed)
         self.cmdThread.sig_fileDeleted.connect(self.on_fileDeleted)
+
+        self.serThread = SerThread(self)
+        self.serThread.keyRespAvailable.connect(self.terminal.on_keyRespAvailable)
+        self.serThread.cmdRespAvailable.connect(self.cmdThread.on_cmdRespAvailable)
 
         ''' Dialogs '''
         self.renameDialog = RenameDialog()
@@ -124,7 +125,8 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
             time.sleep(0.01)
             recv += self.ser.read(self.ser.in_waiting)
             if b'>>> ' in recv:
-                self.terminal.removeLastLine()
+                self.terminal.setPlainText('>>> ')
+                self.terminal.cursorToEnd()
                 break
         else:
             self.terminal.append('connect board fail')

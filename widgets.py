@@ -37,6 +37,9 @@ class TreeView(QtWidgets.QTreeView):
     def on_ContextMenuRequested(self, point):
         self.popupMenu.clear()
 
+        if self.indexAt(point).row() == -1:
+            return
+
         if self.pressedFilePath == self.ui.dirFlash:
             self.popupMenu.addAction(self.actionNewfil)
             self.popupMenu.addAction(self.actionNewdir)
@@ -329,8 +332,7 @@ class Terminal(QtWidgets.QTextEdit):
 
             else:
                 if event.key() in [QtCore.Qt.Key_Return, QtCore.Qt.Key_Enter]:
-                    self.cursor.movePosition(QtGui.QTextCursor.End, QtGui.QTextCursor.MoveAnchor)
-                    self.setTextCursor(self.cursor)
+                    self.cursorToEnd()
 
                 self.ui.serQueue.put(f'Key:::{event.text()}')
 
@@ -344,7 +346,7 @@ class Terminal(QtWidgets.QTextEdit):
         else:
             return QtWidgets.QMainWindow.eventFilter(self, watch, event)            
 
-    def on_msgToTrmReceived(self, data):
+    def on_keyRespAvailable(self, data):
         if self.keyPressMsg == '\x08':  # Backspace
             self.recvbuff += data
 
@@ -454,6 +456,9 @@ class Terminal(QtWidgets.QTextEdit):
             plainMsg = plainMsg[:plainMsg.rindex('\n')] + '\n>>> '
         self.setPlainText(plainMsg)
 
+        self.cursorToEnd()
+
+    def cursorToEnd(self):
         self.cursor.movePosition(QtGui.QTextCursor.End, QtGui.QTextCursor.MoveAnchor)
         self.setTextCursor(self.cursor)
 
