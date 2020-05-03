@@ -71,16 +71,10 @@ class TreeView(QtWidgets.QTreeView):
             index = index.parent()
         filePath = filePath[:-1]
 
-        if self.ui.dirFlash == '/':
-            filePath = filePath[len('/flash'):] or '/'  # '/flash' will become ''
-
         return filePath, fileType
 
     def isFileExist(self, path, type):  # type: 'dir', 'file'
-        if self.ui.dirFlash == '/':
-            path = path[len('/'):]
-        elif self.ui.dirFlash == '/flash':
-            path = path[len('/flash/'):]
+        path = path[len('/flash/'):]
         
         *nameM, nameL = path.split('/') # Middle names, Last name
         

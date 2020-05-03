@@ -34,7 +34,7 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
         self.toolBar.insertWidget(self.actionConnect, self.cmbSer)
 
         ''' Directory Tree '''
-        self.dirFlash = '/flash'    # Flash root directory: '/flash' or '/'
+        self.dirFlash = '/flash'    # Flash root directory: '/flash'
 
         self.treeFlash = QtGui.QStandardItem(QtGui.QIcon('images/treeMenuClosed.png'), self.dirFlash)
         self.treeFlash.setData('dir', QtCore.Qt.WhatsThisRole)

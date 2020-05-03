@@ -126,21 +126,6 @@ class CmdThread(QtCore.QThread):
         return None
 
     def listFile(self, path):
-        data = self.listFileSub(path)
-
-        if not isinstance(data, dict) and path == '/flash':
-            self.ui.dirFlash = '/'
-            self.ui.treeFlash.setToolTip(self.ui.dirFlash)
-
-            data = self.listFileSub(self.ui.dirFlash)
-
-        if not isinstance(data, dict):
-            self.info(f'list {path} fail')
-            return
-
-        self.sig_fileListed.emit(data)
-    
-    def listFileSub(self, path):
         self.ui.serQueue.put(f'Cmd:::os.listdir({path!r})\r\n')
         err = self.waitComplete()
         if err:
@@ -160,7 +145,11 @@ class CmdThread(QtCore.QThread):
             else:
                 data[path].append(file)
 
-        return data
+        if not isinstance(data, dict):
+            self.info(f'list {path} fail')
+            return
+
+        self.sig_fileListed.emit(data)
 
     def loadFile(self, filePath, target):
         self.ui.serQueue.put(f'Cmd:::print(open({filePath!r}, "r").read())\r\n')
