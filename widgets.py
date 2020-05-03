@@ -295,6 +295,8 @@ class Terminal(QtWidgets.QTextEdit):
 
         self.eventFilterEnable = False
         self.installEventFilter(self)
+
+        self.setMouseTracking(False)
         
         self.keyPressMsg = ''
         self.recvbuff = ''

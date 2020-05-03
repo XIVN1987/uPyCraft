@@ -38,6 +38,7 @@ class SerThread(QtCore.QThread):
                 break
             
             if data == '':
+                time.sleep(0.001)
                 continue
 
             if self.type == 'Cmd' and not self.oper.startswith('exec'):
