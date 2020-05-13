@@ -296,7 +296,7 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
             return
 
         item = self.tree.model().itemFromIndex(self.tree.pressedIndex)
-        if item.hasChildren():				# folder and not empty
+        if item.hasChildren():              # folder and not empty
             self.deleteDirContent(item)
 
         self.cmdQueue.put(f'deleteFile:::{self.tree.pressedFilePath}')

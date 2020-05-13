@@ -126,6 +126,15 @@ class CmdThread(QtCore.QThread):
         return None
 
     def listFile(self, path):
+        data = self.listFileDir(path)
+
+        if not isinstance(data, dict):
+            self.info(f'list {path} fail')
+            return
+
+        self.sig_fileListed.emit(data)
+    
+    def listFileDir(self, path):
         self.ui.serQueue.put(f'Cmd:::os.listdir({path!r})\r\n')
         err = self.waitComplete()
         if err:
@@ -141,15 +150,11 @@ class CmdThread(QtCore.QThread):
             match = re.search(r'\((\d+), ', self.serRecv)
             if int(match.group(1)) == 0o40000:
                 if file not in ['System Volume Information']:
-                    data[path].append(self.listFileSub(xpath.join(path, file)))
+                    data[path].append(self.listFileDir(xpath.join(path, file)))
             else:
                 data[path].append(file)
 
-        if not isinstance(data, dict):
-            self.info(f'list {path} fail')
-            return
-
-        self.sig_fileListed.emit(data)
+        return data
 
     def loadFile(self, filePath, target):
         self.ui.serQueue.put(f'Cmd:::print(open({filePath!r}, "r").read())\r\n')
