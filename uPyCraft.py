@@ -25,13 +25,6 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
         self.tree.ui      = self
         self.terminal.ui  = self
         self.tabWidget.ui = self
-        
-        ''' Serial Select '''
-        self.cmbSer = QtWidgets.QComboBox(self)
-        for port, desc, hwid in list_ports.comports():
-            self.cmbSer.addItem(f'{port} ({desc[:desc.index(" (")]})')
-
-        self.toolBar.insertWidget(self.actionConnect, self.cmbSer)
 
         ''' Directory Tree '''
         self.dirFlash = '/flash'    # Flash root directory: '/flash'
@@ -86,15 +79,6 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
         self.conf = configparser.ConfigParser()
         self.conf.read('setting.ini')
 
-        if not self.conf.has_section('serial'):
-            self.conf.add_section('serial')
-            self.conf.set('serial', 'port', 'COM0')
-            self.conf.set('serial', 'baudrate', '115200')
-
-        sel = self.cmbSer.findText(self.conf.get('serial', 'port'))
-        if sel != -1:
-            self.cmbSer.setCurrentIndex(sel)
-
         if not self.conf.has_section('window'):
             self.conf.add_section('window')
             self.conf.set('window', 'window', '(900, 600)')
@@ -111,8 +95,28 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
 
     @QtCore.pyqtSlot()
     def on_actionConnect_triggered(self):
+        portStrs = [f'{port} ({desc[:desc.index(" (") if port.startswith("COM") else -1]})' for port, desc, hwid in list_ports.comports()]
+        if not portStrs:
+            self.terminal.append('no serial port')
+            return
+
+        if not hasattr(self, 'portStr') or self.portStr not in portStrs:
+            if len(portStrs) == 1:
+                self.portStr = portStrs[0]
+                self.setWindowTitle(f'uPyCraft - {self.portStr}')
+
+            else:
+                popupMenu = QtWidgets.QMenu(self)
+                for portStr in portStrs:
+                    popupMenu.addAction(QtWidgets.QAction(portStr, self))
+
+                action = popupMenu.exec(self.mapToGlobal(QtCore.QPoint(self.toolBar.x(), self.toolBar.y() + self.toolBar.height())))
+                if action:
+                    self.portStr = action.text()
+                    self.setWindowTitle(f'uPyCraft - {self.portStr}')
+
         try:
-            self.ser.port = self.cmbSer.currentText().split()[0]
+            self.ser.port = self.portStr.split()[0]
             self.ser.close()
             self.ser.open()
         except Exception as e:
@@ -138,8 +142,6 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
         self.cmdQueue.put('importOS')
 
         self.cmdQueue.put(f'listFile:::{self.dirFlash}')
-
-        self.cmbSer.setEnabled(False)
 
         self.terminal.setReadOnly(False)
         self.terminal.eventFilterEnable = True
@@ -177,7 +179,6 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
         self.actionDisconnect.setVisible(False)
 
         self.ser.close()
-        self.cmbSer.setEnabled(True)
     
     @QtCore.pyqtSlot()
     def on_actionRefresh_triggered(self):
@@ -427,8 +428,6 @@ class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
                 return i, True  # file content changed
 
     def closeEvent(self,event):
-        self.conf.set('serial', 'port', self.cmbSer.currentText())
-
         if not self.isMaximized():
             self.conf.set('window', 'window', f'({self.width()}, {self.height()})')
             self.conf.set('window', 'hSplitter', f'{self.hSplitter.sizes()}')

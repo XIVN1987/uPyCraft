@@ -257,6 +257,9 @@ QScrollBar::sub-page:vertical {
 	spacing: 8px;
 }</string>
    </property>
+   <property name="movable">
+    <bool>false</bool>
+   </property>
    <attribute name="toolBarArea">
     <enum>TopToolBarArea</enum>
    </attribute>

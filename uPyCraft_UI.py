@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\Ubuntu\uPyCraft\uPyCraft.ui'
+# Form implementation generated from reading ui file 'D:\Program\Ubuntu\github\uPyCraft\uPyCraft.ui'
 #
-# Created by: PyQt5 UI code generator 5.11.3
+# Created by: PyQt5 UI code generator 5.11.2
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -163,6 +163,7 @@ class Ui_uPyCraft(object):
 "    background-color: qlineargradient( y1: 0,  y2: 1,stop: 0 #FF4E50, stop: 1 #FFBE2B);\n"
 "    spacing: 8px;\n"
 "}")
+        self.toolBar.setMovable(False)
         self.toolBar.setObjectName("toolBar")
         uPyCraft.addToolBar(QtCore.Qt.TopToolBarArea, self.toolBar)
         self.actionConnect = QtWidgets.QAction(uPyCraft)
