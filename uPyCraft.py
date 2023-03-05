@@ -9,18 +9,25 @@ import posixpath as xpath
 import serial
 from serial.tools import list_ports
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore, QtGui, QtWidgets, uic
 
 from threads import SerThread, CmdThread
 from widgets import RenameDialog, NewFilDialog, NewDirDialog
 
 
+'''
 from uPyCraft_UI import Ui_uPyCraft
 class uPyCraft(QtWidgets.QMainWindow, Ui_uPyCraft):
     def __init__(self):
         super(uPyCraft, self).__init__()
 
         self.setupUi(self)
+'''
+class uPyCraft(QtWidgets.QMainWindow):
+    def __init__(self):
+        super(uPyCraft, self).__init__()
+        
+        uic.loadUi('uPyCraft.ui', self)
 
         self.tree.ui      = self
         self.terminal.ui  = self

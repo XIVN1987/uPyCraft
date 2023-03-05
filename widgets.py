@@ -395,32 +395,24 @@ class Terminal(QtWidgets.QTextEdit):
             self.cursor.movePosition(QtGui.QTextCursor.Right, QtGui.QTextCursor.MoveAnchor)
             self.setTextCursor(self.cursor)
 
-        elif self.keyPressMsg=='\x1b\x5b\x41':  # Key_Up
-            if data == '\x08':
-                self.removeLastLine()
+        elif self.keyPressMsg == '\x1b\x5b\x41' or self.keyPressMsg == '\x1b\x5b\x42':  # Key_Up or Key_Down
+            while data.count('\x08'):
+                self.textCursor().deletePreviousChar()
 
-            elif data == '\x1b' or self.recvbuff.count('\x1b'):
-                self.recvbuff += data
+                data = data[1:]
 
-                if self.recvbuff.count('[K') or self.recvbuff.count('D'):
-                    self.recvbuff = ''
+            if data.count('\x1b') or self.recvbuff.count('\x1b'):
+                while data:
+                    self.recvbuff += data[0]
+                    data = data[1:]
 
-                    self.removeLastLine()
+                    if self.recvbuff.count('\x1b[K'):
+                        self.recvbuff = ''
 
-            else:
-                self.cursor.insertText(data)
+                        self.removeLastLine()
 
-        elif self.keyPressMsg=='\x1b\x5b\x42':  # Key_Down
-            if data == '\x08':
-                self.removeLastLine()
+                        self.cursor.insertText(data)
 
-            elif data == '\x1b' or self.recvbuff.count('\x1b'):
-                self.recvbuff += data
-
-                if self.recvbuff.count('[K') or self.recvbuff.count('D'):
-                    self.recvbuff = ''
-
-                    self.removeLastLine()
             else:
                 self.cursor.insertText(data)
 
