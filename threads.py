@@ -205,7 +205,7 @@ class CmdThread(QtCore.QThread):
             return
 
         if refresh:
-            self.ui.cmdQueue.put(f'listFile:::{self.ui.dirFlash}')
+            self.ui.cmdQueue.put(f'listFile:::/')
 
     def createFile(self, path):
         self.ui.serQueue.put(f'Cmd:::open({path!r}, "w")\r\n')
@@ -214,7 +214,7 @@ class CmdThread(QtCore.QThread):
             self.info(f'create {path} fail')
             return
 
-        self.ui.cmdQueue.put(f'listFile:::{self.ui.dirFlash}')
+        self.ui.cmdQueue.put(f'listFile:::/')
 
     def renameFile(self, oldPath, newPath, fileType):
         self.ui.serQueue.put(f'Cmd:::os.rename({oldPath!r}, {newPath!r})\r\n')

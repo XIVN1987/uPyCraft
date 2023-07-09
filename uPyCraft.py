@@ -34,11 +34,8 @@ class uPyCraft(QtWidgets.QMainWindow):
         self.tabWidget.ui = self
 
         ''' Directory Tree '''
-        self.dirFlash = '/flash'    # Flash root directory: '/flash'
-
-        self.treeFlash = QtGui.QStandardItem(QtGui.QIcon('images/treeMenuClosed.png'), self.dirFlash)
+        self.treeFlash = QtGui.QStandardItem(QtGui.QIcon('images/treeMenuClosed.png'), '/')
         self.treeFlash.setData('dir', QtCore.Qt.WhatsThisRole)
-        self.treeFlash.setToolTip(self.dirFlash)
 
         model = QtGui.QStandardItemModel(self.tree)
         model.appendRow(self.treeFlash)
@@ -148,7 +145,7 @@ class uPyCraft(QtWidgets.QMainWindow):
 
         self.cmdQueue.put('importOS')
 
-        self.cmdQueue.put(f'listFile:::{self.dirFlash}')
+        self.cmdQueue.put(f'listFile:::/')
 
         self.terminal.setReadOnly(False)
         self.terminal.eventFilterEnable = True
@@ -193,7 +190,7 @@ class uPyCraft(QtWidgets.QMainWindow):
             self.terminal.append('serial not opened')
             return
 
-        self.cmdQueue.put(f'listFile:::{self.dirFlash}')
+        self.cmdQueue.put(f'listFile:::/')
 
     @QtCore.pyqtSlot()
     def on_actionDownload_triggered(self, execFile=False):
@@ -309,7 +306,7 @@ class uPyCraft(QtWidgets.QMainWindow):
 
         self.cmdQueue.put(f'deleteFile:::{self.tree.pressedFilePath}')
 
-        self.cmdQueue.put(f'listFile:::{self.dirFlash}')
+        self.cmdQueue.put(f'listFile:::/')
 
     def deleteDirContent(self, root):
         for i in range(root.rowCount()):
@@ -359,7 +356,7 @@ class uPyCraft(QtWidgets.QMainWindow):
         row = self.treeFlash.rowCount()
         self.treeFlash.removeRows(0, row)
         
-        self.createTree(self.treeFlash, self.listBoardDir(data[self.dirFlash]))
+        self.createTree(self.treeFlash, self.listBoardDir(data['/']))
         self.tree.expand(self.treeFlash.index())
 
     def createTree(self, root, msg):
@@ -418,7 +415,7 @@ class uPyCraft(QtWidgets.QMainWindow):
 
                     self.tabWidget.openedFiles[self.tabWidget.openedFiles.index(filePath)] = newFilePath                    
 
-        self.cmdQueue.put(f'listFile:::{self.dirFlash}')
+        self.cmdQueue.put(f'listFile:::/')
 
     def on_fileDeleted(self, filePath):
         if filePath in self.tabWidget.openedFiles:

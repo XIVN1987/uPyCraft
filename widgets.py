@@ -40,7 +40,7 @@ class TreeView(QtWidgets.QTreeView):
         if self.indexAt(point).row() == -1:
             return
 
-        if self.pressedFilePath == self.ui.dirFlash:
+        if self.pressedFilePath == '/':
             self.popupMenu.addAction(self.actionNewfil)
             self.popupMenu.addAction(self.actionNewdir)
         elif self.pressedFileType == 'dir':
@@ -70,6 +70,9 @@ class TreeView(QtWidgets.QTreeView):
             filePath = index.data() + '/' + filePath
             index = index.parent()
         filePath = filePath[:-1]
+
+        if filePath.startswith('//'):
+            filePath = filePath[1:]
 
         return filePath, fileType
 
@@ -165,7 +168,7 @@ class TreeView(QtWidgets.QTreeView):
                             fileData = open(os.path.join(root, file), 'rb').read().decode('latin-1')
                             self.ui.cmdQueue.put(f'downFile:::{filePath}:::{fileData}:::False')
 
-            self.ui.cmdQueue.put(f'listFile:::{self.ui.dirFlash}')
+            self.ui.cmdQueue.put(f'listFile:::/')
 
 
 class TabWidget(QtWidgets.QTabWidget):
