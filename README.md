@@ -2,7 +2,7 @@
 uPyCraft is an IDE designed for micropython. This is my PyQt5 port.
 
 to run this software, you need python 3.6, pyqt5 and pyserial.
-![](https://github.com/XIVN1987/uPyCraft/blob/master/截图.jpg)
+![](./截图.jpg)
 
 ### file/folder operaton
 + create
