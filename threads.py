@@ -78,7 +78,7 @@ class CmdThread(QtCore.QThread):
                 self.loadFile(msg[1], msg[2])
 
             elif msg[0] == 'downFile':
-                self.downFile(msg[1], msg[2], msg[3] == 'True')
+                self.downFile(msg[1], msg[2], msg[3] == 'True', msg[4] == 'True')
 
             elif msg[0] == 'execFile':
                 self.execFile(msg[1])
@@ -102,6 +102,9 @@ class CmdThread(QtCore.QThread):
 
     def importOS(self):
         self.ui.serQueue.put('Cmd:::import os\r\n')
+        self.waitComplete()
+
+        self.ui.serQueue.put('Cmd:::import binascii\r\n')
         self.waitComplete()
     
     def waitComplete(self, second=2):
@@ -167,8 +170,8 @@ class CmdThread(QtCore.QThread):
 
         self.sig_fileLoaded.emit(filePath, fileData, target)
 
-    def downFile(self, filePath, fileData, execFile):
-        self.ui.serQueue.put(f'Cmd:::tempfile=open({filePath!r}, "w")\r\n')
+    def downFile(self, filePath, fileData, binFile, execFile):
+        self.ui.serQueue.put(f'Cmd:::tempfile=open({filePath!r}, {repr("wb" if binFile else "w")})\r\n')
         err = self.waitComplete()
         if err:
             self.info(f'down {filePath} fail')
@@ -176,7 +179,10 @@ class CmdThread(QtCore.QThread):
 
         for i in range(0, len(fileData), 128):
             self.ui.terminal.cursor.insertText('.')
-            self.ui.serQueue.put(f'Cmd:::tempfile.write({fileData[i:i+128]!r})\r\n')
+            if binFile:
+                self.ui.serQueue.put(f'Cmd:::tempfile.write(binascii.unhexlify({fileData[i:i+128]!r}))\r\n')
+            else:
+                self.ui.serQueue.put(f'Cmd:::tempfile.write({fileData[i:i+128]!r})\r\n')
             err = self.waitComplete()
             if err:
                 self.info(f'down {filePath} fail')

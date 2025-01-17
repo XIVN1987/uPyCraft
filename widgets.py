@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import binascii
 import posixpath as xpath
 
 from PyQt5 import QtCore, QtGui, QtWidgets, Qsci
@@ -146,8 +147,8 @@ class TreeView(QtWidgets.QTreeView):
                         self.ui.terminal.append(f'file {filePath} already exists\n\n>>> ')
                         return
 
-                    fileData = open(pcFile, 'rb').read().decode('latin-1')
-                    self.ui.cmdQueue.put(f'downFile:::{filePath}:::{fileData}:::False')
+                    fileData = binascii.hexlify(open(pcFile, 'rb').read()).decode('latin-1')
+                    self.ui.cmdQueue.put(f'downFile:::{filePath}:::{fileData}:::True:::False')
 
                 elif os.path.isdir(pcFile):
                     dirPath = xpath.join(dropDir, os.path.basename(pcFile))
@@ -165,8 +166,8 @@ class TreeView(QtWidgets.QTreeView):
 
                         for file in files:
                             filePath = xpath.join(dropDir, middle, file)
-                            fileData = open(os.path.join(root, file), 'rb').read().decode('latin-1')
-                            self.ui.cmdQueue.put(f'downFile:::{filePath}:::{fileData}:::False')
+                            fileData = binascii.hexlify(open(os.path.join(root, file), 'rb').read()).decode('latin-1')
+                            self.ui.cmdQueue.put(f'downFile:::{filePath}:::{fileData}:::True:::False')
 
             self.ui.cmdQueue.put(f'listFile:::/')
 

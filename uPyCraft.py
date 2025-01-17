@@ -206,7 +206,7 @@ class uPyCraft(QtWidgets.QMainWindow):
         if filePath.endswith('*'):
             filePath = filePath[:-1]
             fileData = self.tabWidget.currentWidget().text()
-            self.cmdQueue.put(f'downFile:::{filePath}:::{fileData}:::{execFile}')
+            self.cmdQueue.put(f'downFile:::{filePath}:::{fileData}:::False:::{execFile}')
 
             self.tabWidget.setTabText(self.tabWidget.currentIndex(), filePath)
 
