@@ -1,6 +1,7 @@
 import os
 import re
 import time
+import datetime
 import posixpath as xpath
 
 from PyQt5 import QtCore, QtGui
@@ -104,7 +105,18 @@ class CmdThread(QtCore.QThread):
         self.ui.serQueue.put('Cmd:::import os\r\n')
         self.waitComplete()
 
+        self.ui.serQueue.put('Cmd:::import machine\r\n')
+        self.waitComplete()
+
         self.ui.serQueue.put('Cmd:::import binascii\r\n')
+        self.waitComplete()
+
+        dt = datetime.datetime.now()
+
+        self.ui.serQueue.put('Cmd:::rtc = machine.RTC()\r\n')
+        self.waitComplete()
+
+        self.ui.serQueue.put(f'Cmd:::rtc.datetime([{dt.year}, {dt.month}, {dt.day}, {dt.hour}, {dt.minute}, {dt.second}, {dt.microsecond}])\r\n')
         self.waitComplete()
     
     def waitComplete(self, second=2):
@@ -214,7 +226,7 @@ class CmdThread(QtCore.QThread):
             self.ui.cmdQueue.put(f'listFile:::/')
 
     def createFile(self, path):
-        self.ui.serQueue.put(f'Cmd:::open({path!r}, "w")\r\n')
+        self.ui.serQueue.put(f'Cmd:::open({path!r}, "w").close()\r\n')
         err = self.waitComplete()
         if err:
             self.info(f'create {path} fail')
